@@ -15,18 +15,31 @@ shell is tied to Linux. Winnotix keeps the former and replaces the latter.
 
 ## Running from source
 
-Requires Python 3.12+ (developed on 3.14).
+Requires Python 3.12+ (developed on 3.14) and 7-Zip (only to unpack libmpv).
 
 ```powershell
 git clone --recursive <this repo>
 cd Winnotix
-
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-
-# libmpv is not bundled in the repo — see vendor/libmpv/README.md
-.\.venv\Scripts\python.exe -m winnotix
+python build.py
 ```
+
+That is the whole thing. `build.py` creates the virtualenv, installs
+dependencies, downloads libmpv if it is missing, and launches the app. Every
+step is skipped when it is already done, so later runs go straight to launching.
+
+Or double-click **`Winnotix.bat`**.
+
+### Other commands
+
+| Command | What it does |
+|---|---|
+| `python build.py` | Set up anything missing, then launch |
+| `python build.py setup` | Set up only, without launching |
+| `python build.py test` | Run the test suite (arguments pass through to pytest) |
+| `python build.py doctor` | Report what is and is not ready |
+| `python build.py clean` | Remove caches; `--all` also removes `.venv` and libmpv |
+
+If something misbehaves, `python build.py doctor` is the first thing to try.
 
 If you already cloned without `--recursive`:
 
