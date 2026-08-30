@@ -14,6 +14,54 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
 
 ### Added
 
+- **Phase 2 — the real UI.** All of upstream's stack pages rebuilt in PySide6, keeping Hypnotix's
+  layout and, crucially, its navigation model: there is no page stack, just a single `back_page` that
+  each page sets as it is entered. That is what makes Back behave the way Hypnotix users expect —
+  Back from a movie returns to the VOD grid, not to wherever you arrived from.
+  - `ui/theme.py` — light/dark palettes and stylesheet. Replaces upstream's 8-line CSS *and* its
+    XApp dark-mode integration, which has no Windows equivalent;
+    `QGuiApplication.styleHints().colorScheme()` supplies the OS preference directly. Linux Mint's
+    green accent is kept deliberately: it is part of the app still reading as Hypnotix.
+  - `ui/icons.py` — 25 icons drawn as inline SVG. Upstream uses XApp/Adwaita symbolic icon names
+    that do not exist on Windows. Rendered per-request in the theme's colour, so one definition
+    serves light and dark.
+  - `ui/flow_layout.py` — height-for-width wrapping layout, standing in for `GtkFlowBox`, which Qt
+    has no equivalent of. Used by the categories, VOD and providers pages.
+  - `ui/logos.py` — logo cache. Cache paths and on-disk format match upstream, so a cache populated
+    by Hypnotix on Linux stays valid.
+  - `ui/widgets.py` — header bar (back / title+subtitle / search / fullscreen / menu), status bar
+    with the "Currently playing" strip, tiles, and the channel sidebar.
+  - `ui/pages.py` — landing, categories, channels+player, VOD, episodes, providers, provider add and
+    edit, delete and reset confirmations, new channel, preferences, spinner.
+  - `ui/main_window.py` — navigation, playback, provider CRUD, favourites, search, fullscreen, menu,
+    and a stream-information dialog.
+- **UI tests** (`tests/test_ui.py`) — run under Qt's offscreen platform, no display and no network.
+  Cover the provider form's conditional fields, provider round-tripping, group-name cleanup and the
+  flow layout's wrapping arithmetic. Suite is now **74 passing, 2 xfailed**.
+- Bundled `resources/` — the landing-page artwork, badges, `countries.list` and the generic channel
+  logo, copied from upstream.
+
+### Changed
+
+- **Channel logos load lazily.** Upstream issues one HTTP request per channel the moment a list is
+  shown (`hypnotix.py:534-543`), so a 1,869-channel playlist fires 1,869 requests for the ~15 rows
+  actually on screen — the reason large providers stall on Linux. Winnotix requests only what is
+  visible, plus a screenful of lookahead, through a small thread pool.
+- **The channel sidebar uses plain list items rather than one widget per channel.** Upstream builds a
+  `GtkListBoxRow` per channel; using items keeps an 1,800-channel list responsive.
+- Logo downloads write to a `.part` file and rename, so an interrupted download is never mistaken
+  for a valid cache entry on the next run.
+
+### Fixed
+
+- `QSvgRenderer.render()` was called without an explicit target rect in both `icons.py` and
+  `pages.svg_pixmap`, so it used the SVG's default size and drew fragments in the corner at the
+  wrong scale. Every icon and the landing artwork were affected.
+- Landing tiles collapsed and clipped their own labels: a `QPushButton` does not adopt a child
+  layout's size hint, so the tiles are now sized explicitly.
+- Child `QLabel`s inside tiles inherited the generic `QWidget` background rule and painted an opaque
+  rectangle over the tile surface.
+
 - **Phase 0 complete — libmpv plays IPTV inside a PySide6 window on Windows.** The project's
   riskiest assumption is now validated. Verified live: Free-TV playlist → 1,869 channels, 97 groups,
   181 movies parsed; H.264 1280×720 decoded via **d3d11va** hardware decoding on the `gpu-next` VO,
