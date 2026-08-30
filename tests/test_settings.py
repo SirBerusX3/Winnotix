@@ -10,7 +10,12 @@ import json
 
 import pytest
 
-from winnotix.core.settings import DEFAULTS, SettingsShim
+from winnotix.core.settings import (
+    DEFAULTS,
+    UPSTREAM_KEYS,
+    WINNOTIX_KEYS,
+    SettingsShim,
+)
 
 
 @pytest.fixture
@@ -28,8 +33,12 @@ def settings(settings_path):
 # --------------------------------------------------------------------------
 
 def test_defaults_match_the_upstream_gschema(settings):
-    """These six keys are org.x.hypnotix. Drifting from them breaks parity."""
-    assert set(DEFAULTS) == {
+    """These six keys are org.x.hypnotix. Drifting from them breaks parity.
+
+    Winnotix-only keys are listed separately in WINNOTIX_KEYS, so adding one is
+    a deliberate act rather than accidental drift from upstream.
+    """
+    assert UPSTREAM_KEYS == {
         "mpv-options",
         "user-agent",
         "http-referer",
@@ -37,12 +46,18 @@ def test_defaults_match_the_upstream_gschema(settings):
         "providers",
         "use-local-ytdlp",
     }
+    assert set(DEFAULTS) == UPSTREAM_KEYS | WINNOTIX_KEYS
     assert settings.get_string("mpv-options") == "hwdec=auto-safe"
     assert settings.get_string("user-agent") == "Mozilla/5.0"
     assert settings.get_string("http-referer") == ""
     assert settings.get_string("active-provider") == "Free-TV"
     assert settings.get_boolean("use-local-ytdlp") is False
     assert len(settings.get_strv("providers")) == 1
+
+
+def test_unplayable_streams_are_hidden_by_default(settings):
+    """Most users want the takedown-slate streams gone without configuring it."""
+    assert settings.get_boolean("hide-unplayable") is True
 
 
 def test_default_provider_uses_the_triple_colon_format(settings):

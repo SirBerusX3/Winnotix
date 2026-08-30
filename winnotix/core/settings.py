@@ -32,7 +32,14 @@ DEFAULTS: dict[str, Any] = {
         "Free-TV:::url:::https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8:::::::::"
     ],
     "use-local-ytdlp": False,
+    # Not part of upstream's schema -- see WINNOTIX_KEYS below.
+    "hide-unplayable": True,
 }
+
+# Keys upstream's org.x.hypnotix schema does not have. Kept separate so the
+# tests can still assert we have not drifted from upstream on the shared ones.
+WINNOTIX_KEYS = {"hide-unplayable"}
+UPSTREAM_KEYS = set(DEFAULTS) - WINNOTIX_KEYS
 
 
 class SettingsShim:

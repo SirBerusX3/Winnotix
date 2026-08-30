@@ -16,6 +16,7 @@ from PySide6.QtCore import QRectF, QSize, Qt, Signal
 from PySide6.QtGui import QPainter, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QFileDialog,
     QFormLayout,
@@ -692,6 +693,7 @@ class PreferencesPage(QScrollArea):
     """User agent, referer, mpv options and yt-dlp."""
 
     setting_changed = Signal(str, str)
+    bool_setting_changed = Signal(str, bool)
     ytdlp_update_clicked = Signal()
 
     def __init__(self, settings, parent=None) -> None:
@@ -735,6 +737,24 @@ class PreferencesPage(QScrollArea):
         mpv_hint = QLabel("Space-separated key=value pairs, e.g. hwdec=auto-safe osc=no")
         mpv_hint.setProperty("dim", "true")
 
+        playlist_heading = QLabel("Playlists")
+        playlist_heading.setProperty("heading", "true")
+
+        self.hide_unplayable_check = QCheckBox("Hide channels known to be unplayable")
+        self.hide_unplayable_check.setChecked(settings.get_boolean("hide-unplayable"))
+        self.hide_unplayable_check.toggled.connect(
+            lambda checked: self.bool_setting_changed.emit("hide-unplayable", checked)
+        )
+        hide_hint = QLabel(
+            "Some streams answer normally but play a filler clip instead of the "
+            "channel — a takedown notice or a “watch on our website” slate. These "
+            "cannot be detected from the playlist, so they are listed by rule in "
+            "resources/blocklist.json. Add your own rules in blocklist.json inside "
+            "the Winnotix data folder."
+        )
+        hide_hint.setProperty("dim", "true")
+        hide_hint.setWordWrap(True)
+
         heading = QLabel("yt-dlp")
         heading.setProperty("heading", "true")
         self.ytdlp_version_label = QLabel("Checking…")
@@ -748,6 +768,11 @@ class PreferencesPage(QScrollArea):
 
         layout.addLayout(form)
         layout.addWidget(mpv_hint)
+        layout.addSpacing(10)
+        layout.addWidget(separator())
+        layout.addWidget(playlist_heading)
+        layout.addWidget(self.hide_unplayable_check)
+        layout.addWidget(hide_hint)
         layout.addSpacing(10)
         layout.addWidget(separator())
         layout.addWidget(heading)

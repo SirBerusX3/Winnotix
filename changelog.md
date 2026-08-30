@@ -14,6 +14,23 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
 
 ### Added
 
+- **Blocklist for streams that resolve but do not play** (`winnotix/core/filters.py`,
+  `resources/blocklist.json`). Some entries answer with HTTP 200 and a valid HLS manifest whose
+  content is filler — a takedown notice or a "watch on our website" slate. Nothing in the playlist
+  or the response distinguishes those from a working stream, so they have to be named.
+  - Ships one rule: **Pluto TV**. Investigation of the Free-TV playlist found **131 entries across
+    two `*.pluto.tv` stitcher hosts**, and 13 of 13 sampled — across all four groups they appear in
+    — returned a ~25-second clip whose segments are named `ptv_takedownslates`. It affects live
+    channels as well as movies, not just the VOD entries. On the default playlist this removes 131
+    entries: movies 181 → 53, channels 1869 → 1866.
+  - Rules live in data, not code, for two reasons: `common.py` stays comparable with upstream, and a
+    rule can be retired without a release if Pluto restores stitcher access.
+  - Users can add rules in `blocklist.json` in `%APPDATA%\Winnotix`. A user rule with the same `id`
+    replaces the built-in one, so setting `"enabled": false` there switches a built-in rule off.
+  - Groups emptied by filtering are dropped rather than left showing "Name (0)"; series lose blocked
+    episodes and are dropped when nothing is left.
+  - New setting `hide-unplayable` (default on) with a Preferences toggle. The status bar reports what
+    was hidden and why.
 - **Phase 2 — the real UI.** All of upstream's stack pages rebuilt in PySide6, keeping Hypnotix's
   layout and, crucially, its navigation model: there is no page stack, just a single `back_page` that
   each page sets as it is entered. That is what makes Back behave the way Hypnotix users expect —
@@ -37,7 +54,10 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
     and a stream-information dialog.
 - **UI tests** (`tests/test_ui.py`) — run under Qt's offscreen platform, no display and no network.
   Cover the provider form's conditional fields, provider round-tripping, group-name cleanup and the
-  flow layout's wrapping arithmetic. Suite is now **74 passing, 2 xfailed**.
+  flow layout's wrapping arithmetic.
+- **Blocklist tests** (`tests/test_filters.py`) — host/regex matching, removal across every
+  collection, group and series cleanup, malformed-rule tolerance, and a check that the *shipped*
+  rule really matches both real Pluto hosts and nothing else. Suite is now **105 passing, 2 xfailed**.
 - Bundled `resources/` — the landing-page artwork, badges, `countries.list` and the generic channel
   logo, copied from upstream.
 
@@ -51,16 +71,6 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
   `GtkListBoxRow` per channel; using items keeps an 1,800-channel list responsive.
 - Logo downloads write to a `.part` file and rename, so an interrupted download is never mistaken
   for a valid cache entry on the next run.
-
-### Fixed
-
-- `QSvgRenderer.render()` was called without an explicit target rect in both `icons.py` and
-  `pages.svg_pixmap`, so it used the SVG's default size and drew fragments in the corner at the
-  wrong scale. Every icon and the landing artwork were affected.
-- Landing tiles collapsed and clipped their own labels: a `QPushButton` does not adopt a child
-  layout's size hint, so the tiles are now sized explicitly.
-- Child `QLabel`s inside tiles inherited the generic `QWidget` background rule and painted an opaque
-  rectangle over the tile surface.
 
 - **Phase 0 complete — libmpv plays IPTV inside a PySide6 window on Windows.** The project's
   riskiest assumption is now validated. Verified live: Free-TV playlist → 1,869 channels, 97 groups,
@@ -93,8 +103,16 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
 
 ### Fixed
 
-- Nothing yet — the three defects below are inherited from upstream and deliberately left in place
-  until Phase 3, so that a parsing change cannot be confused with a port regression.
+- `QSvgRenderer.render()` was called without an explicit target rect in both `icons.py` and
+  `pages.svg_pixmap`, so it used the SVG's default size and drew fragments in the corner at the
+  wrong scale. Every icon and the landing artwork were affected.
+- Landing tiles collapsed and clipped their own labels: a `QPushButton` does not adopt a child
+  layout's size hint, so the tiles are now sized explicitly.
+- Child `QLabel`s inside tiles inherited the generic `QWidget` background rule and painted an opaque
+  rectangle over the tile surface.
+- Note: the three upstream defects below are *not* fixed. They are inherited from Hypnotix and
+  deliberately left in place until Phase 3, so a parsing change cannot be confused with a port
+  regression.
 
 ### Known upstream defects (found by the Phase 1 tests)
 

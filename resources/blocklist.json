@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "_comment": [
+    "Streams that resolve successfully but do not play the advertised content.",
+    "These cannot be detected by HTTP status: the server returns 200 and a valid",
+    "HLS manifest, so only a rule like this can exclude them.",
+    "",
+    "Users can add their own rules in blocklist.json inside the Winnotix data",
+    "directory (%APPDATA%\\Winnotix). User rules are merged with these; a user",
+    "rule with the same id replaces the built-in one, and setting 'enabled' to",
+    "false there switches a built-in rule off.",
+    "",
+    "Each rule needs an id and a reason, plus host_suffix and/or url_regex."
+  ],
+  "rules": [
+    {
+      "id": "pluto-tv-takedown",
+      "reason": "Pluto TV serves a ~25s takedown notice instead of the stream",
+      "host_suffix": ".pluto.tv",
+      "verified": "2026-08-31",
+      "notes": "Every sampled entry across all groups returned an HLS manifest whose segments are named 'ptv_takedownslates'. Affects live channels as well as VOD. Remove this rule if Pluto restores third-party stitcher access.",
+      "enabled": true
+    }
+  ]
+}

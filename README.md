@@ -59,6 +59,25 @@ git submodule update --init
 `winnotix/core/xtream.py` is byte-identical to upstream. `winnotix/core/common.py` differs from
 upstream in five places, all documented in its header.
 
+## Unplayable streams
+
+Public playlists rot. Dead entries usually announce themselves with a 404, but some answer normally
+and play filler instead — a takedown notice, or a "watch on our website" slate. Those cannot be
+detected automatically, so Winnotix keeps a small blocklist in `resources/blocklist.json` and hides
+matching entries. It currently covers Pluto TV, which serves a takedown notice for every entry in
+the default playlist.
+
+Turn it off in Preferences, or add your own rules in `blocklist.json` inside `%APPDATA%\Winnotix`:
+
+```json
+{ "rules": [
+  { "id": "my-rule", "reason": "plays an advert", "host_suffix": ".example.com" }
+] }
+```
+
+A rule needs an `id` and a `reason`, plus `host_suffix` and/or `url_regex`. Reusing a built-in `id`
+replaces that rule — set `"enabled": false` to switch one off.
+
 ## Licence
 
 GPLv3 — see [LICENSE](LICENSE).

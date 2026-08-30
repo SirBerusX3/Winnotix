@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
 )
 
 from ..core import mpvloader
+from ..core.filters import Blocklist, FilterResult
 from ..core.common import (
     MOVIES_GROUP,
     SERIES_GROUP,
@@ -62,7 +63,7 @@ SPINNER = "spinner_page"
 
 
 class MainWindow(QMainWindow):
-    provider_loaded = Signal(object, bool, str)
+    provider_loaded = Signal(object, bool, str, object)
 
     def __init__(self) -> None:
         super().__init__()
@@ -76,6 +77,7 @@ class MainWindow(QMainWindow):
         self.settings = SettingsShim()
         self.manager = Manager(self.settings)
         self.logo_cache = LogoCache(self.settings, self)
+        self.blocklist = Blocklist.load()
 
         # State, mirroring upstream's MainWindow attributes.
         self.providers: list[Provider] = []
@@ -147,6 +149,7 @@ class MainWindow(QMainWindow):
 
         self.preferences = P.PreferencesPage(self.settings)
         self.preferences.setting_changed.connect(self._on_setting_changed)
+        self.preferences.bool_setting_changed.connect(self._on_bool_setting_changed)
         self._add_page(PREFERENCES, self.preferences)
 
         self.providers_page = P.ProvidersPage(self.palette_)
@@ -350,27 +353,34 @@ class MainWindow(QMainWindow):
                 self.provider_loaded.emit(
                     provider, False,
                     "Xtream providers are not supported yet — coming in a later release.",
+                    FilterResult(),
                 )
                 return
             if not self.manager.get_playlist(provider, refresh=refresh):
                 self.provider_loaded.emit(provider, False,
-                                          "Could not download the playlist.")
+                                          "Could not download the playlist.",
+                                          FilterResult())
                 return
             if not self.manager.check_playlist(provider):
                 self.provider_loaded.emit(provider, False,
-                                          "That URL did not return a valid M3U playlist.")
+                                          "That URL did not return a valid M3U playlist.",
+                                          FilterResult())
                 return
             provider.groups.clear()
             provider.channels.clear()
             provider.movies.clear()
             provider.series.clear()
             self.manager.load_channels(provider)
+            filtered = FilterResult()
+            if self.settings.get_boolean("hide-unplayable"):
+                filtered = self.blocklist.apply(provider)
         except Exception as exc:
-            self.provider_loaded.emit(provider, False, str(exc))
+            self.provider_loaded.emit(provider, False, str(exc), FilterResult())
             return
-        self.provider_loaded.emit(provider, True, "")
+        self.provider_loaded.emit(provider, True, "", filtered)
 
-    def _on_provider_loaded(self, provider: Provider, ok: bool, message: str) -> None:
+    def _on_provider_loaded(self, provider: Provider, ok: bool, message: str,
+                            filtered: FilterResult) -> None:
         if provider is not self.active_provider:
             return  # a different provider was selected while this one loaded
         if not ok:
@@ -379,10 +389,13 @@ class MainWindow(QMainWindow):
             return
         self.settings.set_string("active-provider", provider.name)
         self.navigate_to(LANDING)
-        self.status.set_status(
+        summary = (
             f"{provider.name}: {len(provider.channels)} channels, "
             f"{len(provider.movies)} movies, {len(provider.series)} series"
         )
+        if filtered.removed:
+            summary += f" — {filtered.summary()}"
+        self.status.set_status(summary)
 
     def show_providers(self) -> None:
         self.providers_page.show_providers(
@@ -668,6 +681,14 @@ class MainWindow(QMainWindow):
         self.settings.set_string(key, value)
         if key == "mpv-options":
             self.status.set_status("MPV options will apply the next time Winnotix starts.")
+
+    def _on_bool_setting_changed(self, key: str, value: bool) -> None:
+        self.settings.set_boolean(key, value)
+        if key == "hide-unplayable" and self.active_provider is not None:
+            # Filtering happens during load, so the change needs a reload to
+            # take effect -- and a reload is cheap, the playlist is cached.
+            self.status.set_status("Reloading the playlist to apply the change…")
+            self.load_provider(self.active_provider)
 
     def _refresh_ytdlp_version(self) -> None:
         path = shutil.which("yt-dlp")
