@@ -224,6 +224,19 @@ Restore in descending order of value-per-unit-effort:
 9. **Dark mode** — drop `XApp` entirely; use `QGuiApplication.styleHints().colorScheme()`
 10. **i18n** — repoint `bindtextdomain` at a bundled locale dir; the 60+ existing `.po` files work as-is
 
+### Known upstream defects (found by the Phase 1 test suite)
+
+These are inherited bugs, not port regressions. They are pinned by `strict=True` xfail tests in
+`tests/test_m3u.py`, so fixing one flips its test to a failure and forces a deliberate decision.
+Fix them here in Phase 3, not during the port — changing parsing behaviour mid-port makes it
+impossible to tell a port regression from an intentional improvement.
+
+| Defect | Effect | Where |
+|---|---|---|
+| Extensionless logo URLs produce a cache path ending in the literal string `None` (`favorites-newsNone`) | Logo caching silently misbehaves for any playlist whose logo URLs lack a file extension — common in the wild | `common.py` `Channel.__init__`, the `ext` loop |
+| The `SERIES` regex requires zero-padded numbers, so `Show S1E1` is not detected as a series | Single-digit seasons/episodes are listed as ordinary channels instead of grouping into a series | `common.py:SERIES` |
+| A comma inside a channel name silently truncates it — `News, Sport and Weather` becomes `Sport and Weather` | Channel names lose their leading fragment; `EXTINF`'s greedy `params` group is the cause | `common.py:EXTINF` |
+
 ### HiDPI note
 
 `get_surface_for_file()` (`hypnotix.py:414`) does manual cairo surface scaling for HiDPI. Qt handles

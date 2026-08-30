@@ -36,6 +36,32 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
   `20260830` (`mpv-dev-x86_64-*.7z`), the standard Windows libmpv source. Gitignored.
 - `.venv` (Python 3.14.7), `requirements.txt`, `.gitignore`.
 
+- **Phase 1 — backend test suite.** 60 tests (58 passing, 2 documenting upstream bugs) over M3U
+  parsing, group/series detection, logo cache paths, provider `:::` round-tripping, favourites, and
+  the settings shim. Runs in ~0.4s with no GUI and no network. `pytest.ini`, `requirements-dev.txt`.
+- Repository initialised: GPLv3 `LICENSE`, `README.md`, `.gitattributes` (pins `*.py`/`*.md` to LF
+  so our blobs stay bit-identical to upstream's despite `core.autocrlf=true`), and upstream
+  `hypnotix/` pinned as a submodule at `0e0fa1c`.
+
+### Fixed
+
+- Nothing yet — the three defects below are inherited from upstream and deliberately left in place
+  until Phase 3, so that a parsing change cannot be confused with a port regression.
+
+### Known upstream defects (found by the Phase 1 tests)
+
+Each is pinned by a `strict=True` xfail test, so fixing one flips its test to a failure and forces
+a deliberate decision rather than passing silently.
+
+- **Extensionless logo URLs yield a cache path ending in the literal string `None`** — e.g.
+  `favorites-newsNone`. The extension-sniffing loop in `Channel.__init__` leaves `ext` as `None` and
+  interpolates it straight into the filename. Affects any playlist whose logo URLs lack an extension,
+  which is common.
+- **The `SERIES` regex requires zero-padded numbers.** `Show S01E01` groups correctly; `Show S1E1`
+  does not and is listed as an ordinary channel.
+- **A comma inside a channel name silently truncates it.** `News, Sport and Weather` is stored as
+  `Sport and Weather` — `EXTINF`'s greedy `params` group swallows everything up to the last comma.
+
 ### Verified
 
 - **PySide6 6.11.2 installs and runs on Python 3.14.7** via the `cp310-abi3` wheel — this was an open
