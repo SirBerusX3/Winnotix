@@ -1,0 +1,3 @@
+[submodule "hypnotix"]
+	path = hypnotix
+	url = https://github.com/linuxmint/hypnotix.git

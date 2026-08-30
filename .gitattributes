@@ -1,0 +1,17 @@
+# Normalise line endings in the repo; check out native on each platform.
+* text=auto
+
+# Windows-only tooling stays CRLF.
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Python and docs stay LF, matching upstream Hypnotix.
+*.py text eol=lf
+*.md text eol=lf
+
+# Never touch binaries.
+*.dll binary
+*.png binary
+*.7z binary
+*.exe binary
