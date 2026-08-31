@@ -68,6 +68,13 @@ NAME_ALIASES = {
     "bolivia": "BO",
     "tanzania": "TZ",
     "laos": "LA",
+    # iptv-org's country names, where they differ from countries.list. Its
+    # combined playlist groups by country, so an unmatched name costs a flag on
+    # a tile. Reunion is not in countries.list at all.
+    "democratic republic of the congo": "CD",
+    "republic of the congo": "CG",
+    "vatican city": "VA",
+    "reunion": "RE",
 }
 
 # Words to strip before matching a group name against a country name.

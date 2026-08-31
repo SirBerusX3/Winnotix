@@ -299,7 +299,7 @@ class MainWindow(QMainWindow):
             self.header.set_titles(APP_NAME, "Providers")
         elif page == CATALOGUE:
             self.back_page = PROVIDERS
-            self.header.set_titles(APP_NAME, "Free-TV playlists")
+            self.header.set_titles(APP_NAME, "Country playlists")
         elif page == SPINNER:
             self.header.set_titles(APP_NAME, "Loading")
             self.header.back_button.hide()

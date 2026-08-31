@@ -6,8 +6,8 @@ Mint IPTV app, rebuilt on PySide6 with libmpv for playback.
 **Status: Phase 2 complete, Phase 3 well under way.** libmpv renders live IPTV inside a PySide6
 window with hardware decoding, the upstream playlist/provider backend runs on Windows, and the UI is
 rebuilt: categories, channels, VOD, series, favourites, search, provider management and both M3U and
-Xtream providers. Still to come: yt-dlp bootstrapping and packaging. See [roadmap.md](roadmap.md) for the plan and [changelog.md](changelog.md) for what has
-actually been done.
+Xtream providers. Still to come: yt-dlp bootstrapping and packaging. See [roadmap.md](roadmap.md)
+for the plan and [changelog.md](changelog.md) for what has actually been done.
 
 ## Why
 
@@ -58,6 +58,7 @@ git submodule update --init
 | `vendor/libmpv/` | libmpv-2.dll (not committed; see its README) |
 | `resources/flags/` | Country flags from [circle-flags](https://github.com/HatScripts/circle-flags) (MIT) |
 | `tools/` | Maintenance scripts (playlist catalogue generation) |
+| `resources/*_catalogue.json` | Generated indexes of the per-country playlists |
 
 `winnotix/core/xtream.py` is byte-identical to upstream, so everything Xtream needs beyond it lives
 in `winnotix/core/xtream_loader.py` — including the six upstream defects that had to be worked
@@ -69,14 +70,31 @@ five places, all documented in its header.
 The default provider is the combined [Free-TV/IPTV](https://github.com/Free-TV/IPTV) playlist —
 about 2,000 channels, fetched live, so it stays current on its own.
 
-That repo also publishes per-country playlists. **Providers → Browse Free-TV playlists** lists them
-with flags and channel counts; picking one adds it as an ordinary provider. Loading the UK's 55
-channels beats loading all 2,000 when you only want one country.
+**Providers → Browse country playlists** lists 282 more from two sources, with flags and channel
+counts. Picking one adds it as an ordinary provider; the source filter says which is which, since
+most countries appear in both.
 
-The index is generated, not hand-maintained — re-run it when the repo adds countries:
+| Source | Playlists | Channels | The UK |
+|---|---:|---:|---:|
+| [Free-TV/IPTV](https://github.com/Free-TV/IPTV) | 96 | ~4,100 | 55 |
+| [iptv-org/iptv](https://github.com/iptv-org/iptv) | 186 | ~25,600 | 310 |
+
+Each source also offers its whole-world playlist as an *All countries* entry, listed first. Both are
+grouped by country, so they land on the categories page as country tiles with flags — iptv-org's is
+14,310 channels across 187 countries.
+
+A note on which iptv-org URLs these point at. Its repository stores channels in `streams/`, split by
+where each stream comes from (`uk.m3u`, `uk_pluto.m3u`, `uk_samsung.m3u`, …), and **those raw files
+are not what Winnotix uses**: they carry no `group-title` and no `tvg-logo`, so they load as one
+flat, logo-less list. Its CI publishes a processed playlist per country that merges every source
+file for that country and adds both. For the UK that is 310 channels across 43 categories with 308
+logos, against 183 ungrouped and logo-less in `streams/uk.m3u`.
+
+The indexes are generated, not hand-maintained — re-run them when a repo adds countries:
 
 ```powershell
 python tools/generate_catalogue.py --fetch
+python tools/generate_iptv_org_catalogue.py
 ```
 
 ## Xtream providers
@@ -105,11 +123,11 @@ line of HTML — producing errors like
 `Failed to open http://host/itv1/<ADDRESS><A HREF="...">micro_httpd</A></ADDRESS>`. The playlist is
 not corrupt and the URL is not malformed; the host simply has no stream on it.
 
-## Unplayable streams
+## Streams that play the wrong thing
 
-Public playlists rot. Dead entries usually announce themselves with a 404, but some answer normally
-and play filler instead — a takedown notice, or a "watch on our website" slate. Those cannot be
-detected automatically, so Winnotix keeps a small blocklist in `resources/blocklist.json` and hides
+The failures above announce themselves. A smaller set does not: the stream answers normally and
+plays filler — a takedown notice, or a "watch on our website" slate. Nothing in the response
+distinguishes those, so Winnotix keeps a small blocklist in `resources/blocklist.json` and hides
 matching entries. It currently covers Pluto TV, which serves a takedown notice for every entry in
 the default playlist.
 
@@ -132,6 +150,9 @@ Winnotix is a derivative work of Hypnotix, © Linux Mint and contributors, forke
 `0e0fa1c` (v5.6). `winnotix/core/xtream.py` additionally derives from
 [pyxtream](https://pypi.org/project/pyxtream) by Claudio Olmi; its attribution header is preserved.
 Country flags in `resources/flags/` are from [circle-flags](https://github.com/HatScripts/circle-flags),
-MIT licensed — see `resources/flags/LICENSE.md`.
+MIT licensed — see `resources/flags/LICENSE.md`. The bundled playlist indexes describe playlists
+published by [Free-TV/IPTV](https://github.com/Free-TV/IPTV) and
+[iptv-org/iptv](https://github.com/iptv-org/iptv) (public domain, Unlicense); no playlist content is
+redistributed here, only URLs.
 
 Winnotix is not affiliated with or endorsed by Linux Mint.

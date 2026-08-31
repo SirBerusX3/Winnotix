@@ -99,6 +99,18 @@ def from_network() -> list[dict]:
     return entries
 
 
+def combined_playlist(args) -> str:
+    """The repo's whole-world playlist, from the same place as everything else."""
+    if args.fetch:
+        import urllib.request
+        request = urllib.request.Request(RAW_BASE + "playlist.m3u8",
+                                         headers={"User-Agent": "winnotix"})
+        with urllib.request.urlopen(request, timeout=120) as response:
+            return response.read().decode("utf-8", errors="ignore")
+    path = args.repo / "playlist.m3u8"
+    return path.read_text(encoding="utf-8", errors="ignore") if path.is_file() else ""
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     source = parser.add_mutually_exclusive_group()
@@ -111,6 +123,20 @@ def main() -> int:
     entries = from_network() if args.fetch else from_local(args.repo)
     entries = [e for e in entries if e["channels"] > 0]
     entries.sort(key=lambda e: e["name"].lower())
+
+    # The combined playlist, listed first so the picker can offer "everything"
+    # alongside the per-country files. It is also the app's default provider,
+    # and adding it twice is harmless: providers are deduplicated by URL.
+    combined_text = combined_playlist(args)
+    if combined_text:
+        entries.insert(0, {
+            "name": "All countries",
+            "code": "",
+            "file": "playlist.m3u8",
+            "url": RAW_BASE + "playlist.m3u8",
+            "channels": combined_text.count("#EXTINF"),
+            "combined": True,
+        })
 
     payload = {
         "source": "https://github.com/Free-TV/IPTV",

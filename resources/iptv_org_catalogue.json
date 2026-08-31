@@ -1,0 +1,1310 @@
+{
+  "source": "https://github.com/iptv-org/iptv",
+  "combined_url": "https://iptv-org.github.io/iptv/index.country.m3u",
+  "note": "Per-country playlists, published by iptv-org's CI. Each merges every source file for that country and carries logos and category group titles, which the repository's own streams/*.m3u files do not. Channel counts are indicative; the playlist itself is always fetched fresh at its url.",
+  "playlists": [
+    {
+      "name": "All countries",
+      "code": "",
+      "file": "index.country.m3u",
+      "url": "https://iptv-org.github.io/iptv/index.country.m3u",
+      "channels": 14310,
+      "combined": true
+    },
+    {
+      "name": "Afghanistan",
+      "code": "AF",
+      "file": "af.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/af.m3u",
+      "channels": 24
+    },
+    {
+      "name": "Albania",
+      "code": "AL",
+      "file": "al.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/al.m3u",
+      "channels": 27
+    },
+    {
+      "name": "Algeria",
+      "code": "DZ",
+      "file": "dz.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/dz.m3u",
+      "channels": 7
+    },
+    {
+      "name": "Andorra",
+      "code": "AD",
+      "file": "ad.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/ad.m3u",
+      "channels": 8
+    },
+    {
+      "name": "Angola",
+      "code": "AO",
+      "file": "ao.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/ao.m3u",
+      "channels": 3
+    },
+    {
+      "name": "Antigua and Barbuda",
+      "code": "AG",
+      "file": "ag.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/ag.m3u",
+      "channels": 1
+    },
+    {
+      "name": "Argentina",
+      "code": "AR",
+      "file": "ar.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/ar.m3u",
+      "channels": 171
+    },
+    {
+      "name": "Armenia",
+      "code": "AM",
+      "file": "am.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/am.m3u",
+      "channels": 8
+    },
+    {
+      "name": "Aruba",
+      "code": "AW",
+      "file": "aw.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/aw.m3u",
+      "channels": 12
+    },
+    {
+      "name": "Australia",
+      "code": "AU",
+      "file": "au.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/au.m3u",
+      "channels": 77
+    },
+    {
+      "name": "Austria",
+      "code": "AT",
+      "file": "at.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/at.m3u",
+      "channels": 133
+    },
+    {
+      "name": "Azerbaijan",
+      "code": "AZ",
+      "file": "az.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/az.m3u",
+      "channels": 18
+    },
+    {
+      "name": "Bahamas",
+      "code": "BS",
+      "file": "bs.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/bs.m3u",
+      "channels": 4
+    },
+    {
+      "name": "Bahrain",
+      "code": "BH",
+      "file": "bh.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/bh.m3u",
+      "channels": 4
+    },
+    {
+      "name": "Bangladesh",
+      "code": "BD",
+      "file": "bd.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/bd.m3u",
+      "channels": 37
+    },
+    {
+      "name": "Barbados",
+      "code": "BB",
+      "file": "bb.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/bb.m3u",
+      "channels": 1
+    },
+    {
+      "name": "Belarus",
+      "code": "BY",
+      "file": "by.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/by.m3u",
+      "channels": 24
+    },
+    {
+      "name": "Belgium",
+      "code": "BE",
+      "file": "be.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/be.m3u",
+      "channels": 48
+    },
+    {
+      "name": "Belize",
+      "code": "BZ",
+      "file": "bz.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/bz.m3u",
+      "channels": 17
+    },
+    {
+      "name": "Benin",
+      "code": "BJ",
+      "file": "bj.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/bj.m3u",
+      "channels": 9
+    },
+    {
+      "name": "Bolivia",
+      "code": "BO",
+      "file": "bo.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/bo.m3u",
+      "channels": 85
+    },
+    {
+      "name": "Bonaire",
+      "code": "BQ",
+      "file": "bq.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/bq.m3u",
+      "channels": 6
+    },
+    {
+      "name": "Bosnia and Herzegovina",
+      "code": "BA",
+      "file": "ba.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/ba.m3u",
+      "channels": 28
+    },
+    {
+      "name": "Brazil",
+      "code": "BR",
+      "file": "br.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/br.m3u",
+      "channels": 392
+    },
+    {
+      "name": "British Virgin Islands",
+      "code": "VG",
+      "file": "vg.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/vg.m3u",
+      "channels": 2
+    },
+    {
+      "name": "Brunei",
+      "code": "BN",
+      "file": "bn.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/bn.m3u",
+      "channels": 4
+    },
+    {
+      "name": "Bulgaria",
+      "code": "BG",
+      "file": "bg.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/bg.m3u",
+      "channels": 72
+    },
+    {
+      "name": "Burkina Faso",
+      "code": "BF",
+      "file": "bf.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/bf.m3u",
+      "channels": 6
+    },
+    {
+      "name": "Cambodia",
+      "code": "KH",
+      "file": "kh.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/kh.m3u",
+      "channels": 27
+    },
+    {
+      "name": "Cameroon",
+      "code": "CM",
+      "file": "cm.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/cm.m3u",
+      "channels": 15
+    },
+    {
+      "name": "Canada",
+      "code": "CA",
+      "file": "ca.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/ca.m3u",
+      "channels": 262
+    },
+    {
+      "name": "Cape Verde",
+      "code": "CV",
+      "file": "cv.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/cv.m3u",
+      "channels": 1
+    },
+    {
+      "name": "Chad",
+      "code": "TD",
+      "file": "td.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/td.m3u",
+      "channels": 1
+    },
+    {
+      "name": "Chile",
+      "code": "CL",
+      "file": "cl.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/cl.m3u",
+      "channels": 243
+    },
+    {
+      "name": "China",
+      "code": "CN",
+      "file": "cn.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/cn.m3u",
+      "channels": 143
+    },
+    {
+      "name": "Colombia",
+      "code": "CO",
+      "file": "co.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/co.m3u",
+      "channels": 118
+    },
+    {
+      "name": "Comoros",
+      "code": "KM",
+      "file": "km.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/km.m3u",
+      "channels": 1
+    },
+    {
+      "name": "Costa Rica",
+      "code": "CR",
+      "file": "cr.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/cr.m3u",
+      "channels": 66
+    },
+    {
+      "name": "Croatia",
+      "code": "HR",
+      "file": "hr.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/hr.m3u",
+      "channels": 38
+    },
+    {
+      "name": "Cuba",
+      "code": "CU",
+      "file": "cu.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/cu.m3u",
+      "channels": 2
+    },
+    {
+      "name": "Curacao",
+      "code": "CW",
+      "file": "cw.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/cw.m3u",
+      "channels": 5
+    },
+    {
+      "name": "Cyprus",
+      "code": "CY",
+      "file": "cy.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/cy.m3u",
+      "channels": 15
+    },
+    {
+      "name": "Czech Republic",
+      "code": "CZ",
+      "file": "cz.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/cz.m3u",
+      "channels": 86
+    },
+    {
+      "name": "Democratic Republic of the Congo",
+      "code": "CD",
+      "file": "cd.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/cd.m3u",
+      "channels": 16
+    },
+    {
+      "name": "Denmark",
+      "code": "DK",
+      "file": "dk.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/dk.m3u",
+      "channels": 155
+    },
+    {
+      "name": "Dominican Republic",
+      "code": "DO",
+      "file": "do.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/do.m3u",
+      "channels": 256
+    },
+    {
+      "name": "Ecuador",
+      "code": "EC",
+      "file": "ec.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/ec.m3u",
+      "channels": 97
+    },
+    {
+      "name": "Egypt",
+      "code": "EG",
+      "file": "eg.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/eg.m3u",
+      "channels": 22
+    },
+    {
+      "name": "El Salvador",
+      "code": "SV",
+      "file": "sv.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/sv.m3u",
+      "channels": 33
+    },
+    {
+      "name": "Equatorial Guinea",
+      "code": "GQ",
+      "file": "gq.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/gq.m3u",
+      "channels": 2
+    },
+    {
+      "name": "Eritrea",
+      "code": "ER",
+      "file": "er.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/er.m3u",
+      "channels": 1
+    },
+    {
+      "name": "Estonia",
+      "code": "EE",
+      "file": "ee.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/ee.m3u",
+      "channels": 25
+    },
+    {
+      "name": "Ethiopia",
+      "code": "ET",
+      "file": "et.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/et.m3u",
+      "channels": 4
+    },
+    {
+      "name": "Finland",
+      "code": "FI",
+      "file": "fi.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/fi.m3u",
+      "channels": 26
+    },
+    {
+      "name": "France",
+      "code": "FR",
+      "file": "fr.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/fr.m3u",
+      "channels": 215
+    },
+    {
+      "name": "French Guiana",
+      "code": "GF",
+      "file": "gf.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/gf.m3u",
+      "channels": 1
+    },
+    {
+      "name": "French Polynesia",
+      "code": "PF",
+      "file": "pf.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/pf.m3u",
+      "channels": 2
+    },
+    {
+      "name": "Gambia",
+      "code": "GM",
+      "file": "gm.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/gm.m3u",
+      "channels": 1
+    },
+    {
+      "name": "Georgia",
+      "code": "GE",
+      "file": "ge.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/ge.m3u",
+      "channels": 21
+    },
+    {
+      "name": "Germany",
+      "code": "DE",
+      "file": "de.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/de.m3u",
+      "channels": 295
+    },
+    {
+      "name": "Ghana",
+      "code": "GH",
+      "file": "gh.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/gh.m3u",
+      "channels": 11
+    },
+    {
+      "name": "Greece",
+      "code": "GR",
+      "file": "gr.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/gr.m3u",
+      "channels": 71
+    },
+    {
+      "name": "Guadeloupe",
+      "code": "GP",
+      "file": "gp.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/gp.m3u",
+      "channels": 5
+    },
+    {
+      "name": "Guam",
+      "code": "GU",
+      "file": "gu.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/gu.m3u",
+      "channels": 2
+    },
+    {
+      "name": "Guatemala",
+      "code": "GT",
+      "file": "gt.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/gt.m3u",
+      "channels": 64
+    },
+    {
+      "name": "Guernsey",
+      "code": "GG",
+      "file": "gg.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/gg.m3u",
+      "channels": 1
+    },
+    {
+      "name": "Guinea",
+      "code": "GN",
+      "file": "gn.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/gn.m3u",
+      "channels": 5
+    },
+    {
+      "name": "Guyana",
+      "code": "GY",
+      "file": "gy.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/gy.m3u",
+      "channels": 8
+    },
+    {
+      "name": "Haiti",
+      "code": "HT",
+      "file": "ht.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/ht.m3u",
+      "channels": 27
+    },
+    {
+      "name": "Honduras",
+      "code": "HN",
+      "file": "hn.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/hn.m3u",
+      "channels": 77
+    },
+    {
+      "name": "Hong Kong",
+      "code": "HK",
+      "file": "hk.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/hk.m3u",
+      "channels": 13
+    },
+    {
+      "name": "Hungary",
+      "code": "HU",
+      "file": "hu.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/hu.m3u",
+      "channels": 144
+    },
+    {
+      "name": "Iceland",
+      "code": "IS",
+      "file": "is.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/is.m3u",
+      "channels": 6
+    },
+    {
+      "name": "India",
+      "code": "IN",
+      "file": "in.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/in.m3u",
+      "channels": 740
+    },
+    {
+      "name": "Indonesia",
+      "code": "ID",
+      "file": "id.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/id.m3u",
+      "channels": 173
+    },
+    {
+      "name": "Iran",
+      "code": "IR",
+      "file": "ir.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/ir.m3u",
+      "channels": 183
+    },
+    {
+      "name": "Iraq",
+      "code": "IQ",
+      "file": "iq.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/iq.m3u",
+      "channels": 59
+    },
+    {
+      "name": "Ireland",
+      "code": "IE",
+      "file": "ie.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/ie.m3u",
+      "channels": 85
+    },
+    {
+      "name": "Israel",
+      "code": "IL",
+      "file": "il.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/il.m3u",
+      "channels": 28
+    },
+    {
+      "name": "Italy",
+      "code": "IT",
+      "file": "it.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/it.m3u",
+      "channels": 318
+    },
+    {
+      "name": "Ivory Coast",
+      "code": "CI",
+      "file": "ci.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/ci.m3u",
+      "channels": 19
+    },
+    {
+      "name": "Jamaica",
+      "code": "JM",
+      "file": "jm.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/jm.m3u",
+      "channels": 7
+    },
+    {
+      "name": "Japan",
+      "code": "JP",
+      "file": "jp.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/jp.m3u",
+      "channels": 14
+    },
+    {
+      "name": "Jordan",
+      "code": "JO",
+      "file": "jo.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/jo.m3u",
+      "channels": 18
+    },
+    {
+      "name": "Kazakhstan",
+      "code": "KZ",
+      "file": "kz.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/kz.m3u",
+      "channels": 37
+    },
+    {
+      "name": "Kenya",
+      "code": "KE",
+      "file": "ke.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/ke.m3u",
+      "channels": 38
+    },
+    {
+      "name": "Kosovo",
+      "code": "XK",
+      "file": "xk.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/xk.m3u",
+      "channels": 15
+    },
+    {
+      "name": "Kuwait",
+      "code": "KW",
+      "file": "kw.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/kw.m3u",
+      "channels": 11
+    },
+    {
+      "name": "Kyrgyzstan",
+      "code": "KG",
+      "file": "kg.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/kg.m3u",
+      "channels": 8
+    },
+    {
+      "name": "Laos",
+      "code": "LA",
+      "file": "la.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/la.m3u",
+      "channels": 12
+    },
+    {
+      "name": "Latvia",
+      "code": "LV",
+      "file": "lv.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/lv.m3u",
+      "channels": 24
+    },
+    {
+      "name": "Lebanon",
+      "code": "LB",
+      "file": "lb.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/lb.m3u",
+      "channels": 31
+    },
+    {
+      "name": "Libya",
+      "code": "LY",
+      "file": "ly.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/ly.m3u",
+      "channels": 6
+    },
+    {
+      "name": "Liechtenstein",
+      "code": "LI",
+      "file": "li.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/li.m3u",
+      "channels": 2
+    },
+    {
+      "name": "Lithuania",
+      "code": "LT",
+      "file": "lt.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/lt.m3u",
+      "channels": 24
+    },
+    {
+      "name": "Luxembourg",
+      "code": "LU",
+      "file": "lu.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/lu.m3u",
+      "channels": 14
+    },
+    {
+      "name": "Macao",
+      "code": "MO",
+      "file": "mo.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/mo.m3u",
+      "channels": 7
+    },
+    {
+      "name": "Madagascar",
+      "code": "MG",
+      "file": "mg.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/mg.m3u",
+      "channels": 1
+    },
+    {
+      "name": "Malaysia",
+      "code": "MY",
+      "file": "my.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/my.m3u",
+      "channels": 20
+    },
+    {
+      "name": "Maldives",
+      "code": "MV",
+      "file": "mv.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/mv.m3u",
+      "channels": 10
+    },
+    {
+      "name": "Mali",
+      "code": "ML",
+      "file": "ml.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/ml.m3u",
+      "channels": 4
+    },
+    {
+      "name": "Malta",
+      "code": "MT",
+      "file": "mt.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/mt.m3u",
+      "channels": 7
+    },
+    {
+      "name": "Martinique",
+      "code": "MQ",
+      "file": "mq.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/mq.m3u",
+      "channels": 6
+    },
+    {
+      "name": "Mauritania",
+      "code": "MR",
+      "file": "mr.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/mr.m3u",
+      "channels": 1
+    },
+    {
+      "name": "Mauritius",
+      "code": "MU",
+      "file": "mu.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/mu.m3u",
+      "channels": 2
+    },
+    {
+      "name": "Mexico",
+      "code": "MX",
+      "file": "mx.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/mx.m3u",
+      "channels": 160
+    },
+    {
+      "name": "Moldova",
+      "code": "MD",
+      "file": "md.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/md.m3u",
+      "channels": 32
+    },
+    {
+      "name": "Monaco",
+      "code": "MC",
+      "file": "mc.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/mc.m3u",
+      "channels": 5
+    },
+    {
+      "name": "Mongolia",
+      "code": "MN",
+      "file": "mn.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/mn.m3u",
+      "channels": 38
+    },
+    {
+      "name": "Montenegro",
+      "code": "ME",
+      "file": "me.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/me.m3u",
+      "channels": 8
+    },
+    {
+      "name": "Morocco",
+      "code": "MA",
+      "file": "ma.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/ma.m3u",
+      "channels": 12
+    },
+    {
+      "name": "Mozambique",
+      "code": "MZ",
+      "file": "mz.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/mz.m3u",
+      "channels": 5
+    },
+    {
+      "name": "Myanmar",
+      "code": "MM",
+      "file": "mm.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/mm.m3u",
+      "channels": 18
+    },
+    {
+      "name": "Namibia",
+      "code": "NA",
+      "file": "na.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/na.m3u",
+      "channels": 2
+    },
+    {
+      "name": "Nepal",
+      "code": "NP",
+      "file": "np.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/np.m3u",
+      "channels": 18
+    },
+    {
+      "name": "Netherlands",
+      "code": "NL",
+      "file": "nl.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/nl.m3u",
+      "channels": 161
+    },
+    {
+      "name": "New Zealand",
+      "code": "NZ",
+      "file": "nz.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/nz.m3u",
+      "channels": 29
+    },
+    {
+      "name": "Nicaragua",
+      "code": "NI",
+      "file": "ni.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/ni.m3u",
+      "channels": 21
+    },
+    {
+      "name": "Niger",
+      "code": "NE",
+      "file": "ne.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/ne.m3u",
+      "channels": 6
+    },
+    {
+      "name": "Nigeria",
+      "code": "NG",
+      "file": "ng.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/ng.m3u",
+      "channels": 54
+    },
+    {
+      "name": "North Korea",
+      "code": "KP",
+      "file": "kp.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/kp.m3u",
+      "channels": 2
+    },
+    {
+      "name": "North Macedonia",
+      "code": "MK",
+      "file": "mk.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/mk.m3u",
+      "channels": 28
+    },
+    {
+      "name": "Norway",
+      "code": "NO",
+      "file": "no.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/no.m3u",
+      "channels": 117
+    },
+    {
+      "name": "Oman",
+      "code": "OM",
+      "file": "om.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/om.m3u",
+      "channels": 5
+    },
+    {
+      "name": "Pakistan",
+      "code": "PK",
+      "file": "pk.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/pk.m3u",
+      "channels": 97
+    },
+    {
+      "name": "Palestine",
+      "code": "PS",
+      "file": "ps.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/ps.m3u",
+      "channels": 19
+    },
+    {
+      "name": "Panama",
+      "code": "PA",
+      "file": "pa.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/pa.m3u",
+      "channels": 26
+    },
+    {
+      "name": "Papua New Guinea",
+      "code": "PG",
+      "file": "pg.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/pg.m3u",
+      "channels": 1
+    },
+    {
+      "name": "Paraguay",
+      "code": "PY",
+      "file": "py.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/py.m3u",
+      "channels": 77
+    },
+    {
+      "name": "Peru",
+      "code": "PE",
+      "file": "pe.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/pe.m3u",
+      "channels": 189
+    },
+    {
+      "name": "Philippines",
+      "code": "PH",
+      "file": "ph.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/ph.m3u",
+      "channels": 19
+    },
+    {
+      "name": "Poland",
+      "code": "PL",
+      "file": "pl.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/pl.m3u",
+      "channels": 106
+    },
+    {
+      "name": "Portugal",
+      "code": "PT",
+      "file": "pt.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/pt.m3u",
+      "channels": 64
+    },
+    {
+      "name": "Puerto Rico",
+      "code": "PR",
+      "file": "pr.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/pr.m3u",
+      "channels": 28
+    },
+    {
+      "name": "Qatar",
+      "code": "QA",
+      "file": "qa.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/qa.m3u",
+      "channels": 16
+    },
+    {
+      "name": "Republic of the Congo",
+      "code": "CG",
+      "file": "cg.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/cg.m3u",
+      "channels": 5
+    },
+    {
+      "name": "Reunion",
+      "code": "RE",
+      "file": "re.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/re.m3u",
+      "channels": 1
+    },
+    {
+      "name": "Romania",
+      "code": "RO",
+      "file": "ro.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/ro.m3u",
+      "channels": 118
+    },
+    {
+      "name": "Russia",
+      "code": "RU",
+      "file": "ru.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/ru.m3u",
+      "channels": 453
+    },
+    {
+      "name": "Rwanda",
+      "code": "RW",
+      "file": "rw.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/rw.m3u",
+      "channels": 8
+    },
+    {
+      "name": "Saint Kitts and Nevis",
+      "code": "KN",
+      "file": "kn.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/kn.m3u",
+      "channels": 2
+    },
+    {
+      "name": "Saint Lucia",
+      "code": "LC",
+      "file": "lc.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/lc.m3u",
+      "channels": 2
+    },
+    {
+      "name": "Saint Vincent and the Grenadines",
+      "code": "VC",
+      "file": "vc.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/vc.m3u",
+      "channels": 1
+    },
+    {
+      "name": "Samoa",
+      "code": "WS",
+      "file": "ws.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/ws.m3u",
+      "channels": 1
+    },
+    {
+      "name": "San Marino",
+      "code": "SM",
+      "file": "sm.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/sm.m3u",
+      "channels": 3
+    },
+    {
+      "name": "Saudi Arabia",
+      "code": "SA",
+      "file": "sa.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/sa.m3u",
+      "channels": 53
+    },
+    {
+      "name": "Senegal",
+      "code": "SN",
+      "file": "sn.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/sn.m3u",
+      "channels": 16
+    },
+    {
+      "name": "Serbia",
+      "code": "RS",
+      "file": "rs.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/rs.m3u",
+      "channels": 68
+    },
+    {
+      "name": "Sierra Leone",
+      "code": "SL",
+      "file": "sl.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/sl.m3u",
+      "channels": 1
+    },
+    {
+      "name": "Singapore",
+      "code": "SG",
+      "file": "sg.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/sg.m3u",
+      "channels": 10
+    },
+    {
+      "name": "Sint Maarten",
+      "code": "SX",
+      "file": "sx.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/sx.m3u",
+      "channels": 6
+    },
+    {
+      "name": "Slovakia",
+      "code": "SK",
+      "file": "sk.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/sk.m3u",
+      "channels": 75
+    },
+    {
+      "name": "Slovenia",
+      "code": "SI",
+      "file": "si.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/si.m3u",
+      "channels": 24
+    },
+    {
+      "name": "Somalia",
+      "code": "SO",
+      "file": "so.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/so.m3u",
+      "channels": 7
+    },
+    {
+      "name": "South Africa",
+      "code": "ZA",
+      "file": "za.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/za.m3u",
+      "channels": 21
+    },
+    {
+      "name": "South Korea",
+      "code": "KR",
+      "file": "kr.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/kr.m3u",
+      "channels": 74
+    },
+    {
+      "name": "Spain",
+      "code": "ES",
+      "file": "es.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/es.m3u",
+      "channels": 337
+    },
+    {
+      "name": "Sri Lanka",
+      "code": "LK",
+      "file": "lk.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/lk.m3u",
+      "channels": 15
+    },
+    {
+      "name": "Sudan",
+      "code": "SD",
+      "file": "sd.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/sd.m3u",
+      "channels": 3
+    },
+    {
+      "name": "Suriname",
+      "code": "SR",
+      "file": "sr.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/sr.m3u",
+      "channels": 2
+    },
+    {
+      "name": "Sweden",
+      "code": "SE",
+      "file": "se.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/se.m3u",
+      "channels": 142
+    },
+    {
+      "name": "Switzerland",
+      "code": "CH",
+      "file": "ch.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/ch.m3u",
+      "channels": 150
+    },
+    {
+      "name": "Syria",
+      "code": "SY",
+      "file": "sy.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/sy.m3u",
+      "channels": 11
+    },
+    {
+      "name": "Taiwan",
+      "code": "TW",
+      "file": "tw.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/tw.m3u",
+      "channels": 26
+    },
+    {
+      "name": "Tajikistan",
+      "code": "TJ",
+      "file": "tj.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/tj.m3u",
+      "channels": 14
+    },
+    {
+      "name": "Tanzania",
+      "code": "TZ",
+      "file": "tz.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/tz.m3u",
+      "channels": 8
+    },
+    {
+      "name": "Thailand",
+      "code": "TH",
+      "file": "th.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/th.m3u",
+      "channels": 71
+    },
+    {
+      "name": "Togo",
+      "code": "TG",
+      "file": "tg.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/tg.m3u",
+      "channels": 11
+    },
+    {
+      "name": "Trinidad and Tobago",
+      "code": "TT",
+      "file": "tt.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/tt.m3u",
+      "channels": 6
+    },
+    {
+      "name": "Tunisia",
+      "code": "TN",
+      "file": "tn.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/tn.m3u",
+      "channels": 5
+    },
+    {
+      "name": "Turkiye",
+      "code": "TR",
+      "file": "tr.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/tr.m3u",
+      "channels": 174
+    },
+    {
+      "name": "Turkmenistan",
+      "code": "TM",
+      "file": "tm.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/tm.m3u",
+      "channels": 8
+    },
+    {
+      "name": "Uganda",
+      "code": "UG",
+      "file": "ug.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/ug.m3u",
+      "channels": 21
+    },
+    {
+      "name": "Ukraine",
+      "code": "UA",
+      "file": "ua.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/ua.m3u",
+      "channels": 165
+    },
+    {
+      "name": "United Arab Emirates",
+      "code": "AE",
+      "file": "ae.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/ae.m3u",
+      "channels": 19
+    },
+    {
+      "name": "United Kingdom",
+      "code": "GB",
+      "file": "uk.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/uk.m3u",
+      "channels": 310
+    },
+    {
+      "name": "United States",
+      "code": "US",
+      "file": "us.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/us.m3u",
+      "channels": 1465
+    },
+    {
+      "name": "Uruguay",
+      "code": "UY",
+      "file": "uy.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/uy.m3u",
+      "channels": 18
+    },
+    {
+      "name": "Uzbekistan",
+      "code": "UZ",
+      "file": "uz.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/uz.m3u",
+      "channels": 33
+    },
+    {
+      "name": "Vatican City",
+      "code": "VA",
+      "file": "va.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/va.m3u",
+      "channels": 2
+    },
+    {
+      "name": "Venezuela",
+      "code": "VE",
+      "file": "ve.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/ve.m3u",
+      "channels": 80
+    },
+    {
+      "name": "Vietnam",
+      "code": "VN",
+      "file": "vn.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/vn.m3u",
+      "channels": 82
+    },
+    {
+      "name": "Western Sahara",
+      "code": "EH",
+      "file": "eh.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/eh.m3u",
+      "channels": 1
+    },
+    {
+      "name": "Yemen",
+      "code": "YE",
+      "file": "ye.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/ye.m3u",
+      "channels": 4
+    },
+    {
+      "name": "Zimbabwe",
+      "code": "ZW",
+      "file": "zw.m3u",
+      "url": "https://iptv-org.github.io/iptv/countries/zw.m3u",
+      "channels": 1
+    }
+  ]
+}

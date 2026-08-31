@@ -14,6 +14,36 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
 
 ### Added
 
+- **iptv-org playlists, as a second catalogue source** (`resources/iptv_org_catalogue.json`,
+  `tools/generate_iptv_org_catalogue.py`). [iptv-org/iptv](https://github.com/iptv-org/iptv) is a far
+  larger collection than Free-TV — 186 per-country playlists against 96, and 1,465 US channels
+  against Free-TV's 2,059 worldwide. The picker (Providers → *Browse country playlists*) now lists
+  both, with a source filter, since most countries appear in each.
+  - **The raw `streams/*.m3u` files are deliberately not what we point at.** That is where the
+    repository keeps channels, split by where each stream comes from — `uk.m3u`, `uk_pluto.m3u`,
+    `uk_samsung.m3u`, and 121 more service-specific files. They carry no `group-title` and no
+    `tvg-logo`: parsed, `streams/uk.m3u` gives **183 channels, 0 groups, 0 logos**.
+  - iptv-org's CI publishes a processed playlist per country that merges every source file for that
+    country and adds both. Parsed, `countries/uk.m3u` gives **310 channels, 43 categories, 308
+    logos**. So the merge the per-service files need is one iptv-org already does, and does better
+    than we could locally — which also answers whether to merge or filter them: they arrive merged.
+  - **Each source's whole-world playlist is offered too**, as an *All countries* entry listed first.
+    iptv-org's `index.country.m3u` is 14,310 channels grouped by country, so it lands on the
+    categories page as 187 country tiles — 186 of which resolve to a bundled flag. Four aliases were
+    needed for names `countries.list` spells differently or omits: Democratic Republic of the Congo,
+    Republic of the Congo, Vatican City, and Réunion.
+  - iptv-org codes the United Kingdom `UK`, where ISO 3166-1 and our flag set say `GB`. The
+    generator normalises to our code, so searching "britain" finds both sources' UK entries and the
+    flag lookup succeeds. Provider names stay distinct — "Free-TV UK" and "iptv-org United Kingdom".
+  - **The blocklist correctly leaves these alone.** iptv-org routes Pluto through `jmp2.uk`
+    redirectors that carry the device parameters Pluto's stitcher wants; sampling one resolved to a
+    real manifest with no `ptv_takedownslates`. The shipped rule matches `.pluto.tv` hosts in the
+    playlist, which these are not, so it removes 0 entries from an iptv-org playlist — correct, not
+    a gap.
+  - Nothing is vendored: `newIPTVrepo/` is gitignored like the existing Free-TV snapshot. The
+    catalogue records URLs only, and playlists are always fetched live.
+  - Covered by tests for source tagging, combined-entry ordering, cross-source search and the
+    picker's source filter. **Suite is now 223 passing, 2 xfailed.**
 - **Xtream API providers.** `xtream.py` (937 lines, byte-identical to upstream) was copied across in
   Phase 1 and imported by nothing; the app refused Xtream providers outright. It is now wired up:
   live channels, movies, series and categories all load, and a series' seasons and episodes are
@@ -80,7 +110,7 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
   - That last case is not hypothetical — it is the ITV 1 entry in the Free-TV UK playlist, and it
     produces mpv errors that look like a corrupted playlist. See *Investigated* below.
   - **Tests** (`tests/test_streamcheck.py`) classify each case from a captured response, including
-    the verbatim one that host returns, with no network. **Suite is now 208 passing, 2 xfailed.**
+    the verbatim one that host returns, with no network.
 - **Reload Provider (Ctrl+R).** Upstream has no manual reload — it re-downloads on a timer, every
   5 minutes for M3U and every 2 hours for Xtream (`hypnotix.py:150,1564`). Reloading a large playlist
   unprompted is exactly the stall lazy logo loading was added to avoid, so this is on demand instead.
@@ -158,6 +188,11 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
 
 ### Changed
 
+- **The playlist picker is no longer Free-TV-only.** `catalogue.py` loads one index per source and
+  tags every entry with it, so `provider_name` is `"<source> <name>"` and two sources' entries for
+  one country cannot collide as providers. `load(path)` became `load_file(path, source)`; `load()`
+  now takes no arguments and returns every source's entries. The Free-TV generator also emits an
+  *All countries* entry, so both sources offer their combined playlist the same way.
 - **Seasons sort numerically and keep their own names.** The episodes page sorted season and episode
   keys as strings, putting season 10 before season 2, and labelled every season `Season %s` from its
   key as upstream does. That reads correctly for M3U playlists, whose keys are numbers, but an

@@ -308,3 +308,43 @@ def test_an_empty_message_hides_the_banner(channels_page):
     channels_page.show_message("something")
     channels_page.show_message("")
     assert channels_page.message_label.isHidden()
+
+
+# --------------------------------------------------------------------------
+# Catalogue picker
+# --------------------------------------------------------------------------
+
+@pytest.fixture
+def catalogue_page(qapp):
+    from winnotix.ui.pages import CataloguePage
+
+    page = CataloguePage()
+    yield page
+    page.deleteLater()
+
+
+def test_the_picker_lists_every_source_by_default(catalogue_page):
+    from winnotix.core import catalogue
+
+    assert catalogue_page.selected_source is None
+    assert catalogue_page.flow_page.flow.count() == len(catalogue.load())
+    for label in catalogue.sources():
+        assert label in catalogue_page.summary.text()
+
+
+def test_the_source_filter_narrows_the_picker(catalogue_page):
+    from winnotix.core import catalogue
+
+    catalogue_page.source_combo.setCurrentIndex(
+        catalogue_page.source_combo.findData(catalogue.IPTV_ORG)
+    )
+    expected = sum(1 for e in catalogue.load() if e.source == catalogue.IPTV_ORG)
+    assert catalogue_page.selected_source == catalogue.IPTV_ORG
+    assert catalogue_page.flow_page.flow.count() == expected
+    assert catalogue.FREE_TV not in catalogue_page.summary.text()
+
+
+def test_searching_the_picker_spans_both_sources(catalogue_page):
+    catalogue_page.search_entry.setText("britain")
+    assert catalogue_page.flow_page.flow.count() == 2
+    assert "2 of" in catalogue_page.summary.text()

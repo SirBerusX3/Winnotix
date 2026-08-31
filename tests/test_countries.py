@@ -1,8 +1,9 @@
-"""Tests for country resolution, flags, badges and the playlist catalogue."""
+"""Tests for country resolution, flags, badges and the playlist catalogues."""
 
 from __future__ import annotations
 
 import json
+from collections import Counter
 
 import pytest
 
@@ -164,26 +165,64 @@ def test_badge_files_exist_for_every_badge_word():
 
 
 # --------------------------------------------------------------------------
-# The Free-TV catalogue
+# The playlist catalogues
 # --------------------------------------------------------------------------
 
-def test_bundled_catalogue_loads():
+def test_bundled_catalogues_load():
     entries = catalogue.load()
     assert len(entries) > 50
     assert all(e.name and e.url for e in entries)
 
 
-def test_catalogue_urls_point_at_the_free_tv_repo():
-    for entry in catalogue.load():
-        assert entry.url.startswith(
-            "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/"
-        )
+def test_both_sources_are_bundled():
+    assert catalogue.sources() == [catalogue.FREE_TV, catalogue.IPTV_ORG]
+    by_source = Counter(e.source for e in catalogue.load())
+    assert by_source[catalogue.FREE_TV] > 50
+    assert by_source[catalogue.IPTV_ORG] > 100
+
+
+@pytest.mark.parametrize(
+    "source,prefix",
+    [
+        (catalogue.FREE_TV, "https://raw.githubusercontent.com/Free-TV/IPTV/master/"),
+        (catalogue.IPTV_ORG, "https://iptv-org.github.io/iptv/"),
+    ],
+)
+def test_catalogue_urls_point_at_their_own_source(source, prefix):
+    entries = [e for e in catalogue.load() if e.source == source]
+    assert entries
+    for entry in entries:
+        assert entry.url.startswith(prefix), entry.name
+
+
+def test_each_source_offers_one_combined_playlist():
+    """The whole-world playlist, so the picker can offer everything at once."""
+    combined = [e for e in catalogue.load() if e.combined]
+    assert {e.source for e in combined} == set(catalogue.sources())
+    assert all(e.code == "" and e.channels > 1000 for e in combined)
+
+
+def test_combined_playlists_sort_first():
+    ordered = catalogue.order(catalogue.load())
+    assert all(e.combined for e in ordered[:len(catalogue.sources())])
+    assert not any(e.combined for e in ordered[len(catalogue.sources()):])
 
 
 def test_provider_name_is_namespaced():
-    """So a catalogue entry cannot silently collide with a hand-added provider."""
-    entry = next(e for e in catalogue.load() if e.code == "GB")
-    assert entry.provider_name == "Free-TV UK"
+    """So two sources' entries for one country cannot collide as providers."""
+    names = {e.provider_name for e in catalogue.load() if e.code == "GB"}
+    assert names == {"Free-TV UK", "iptv-org United Kingdom"}
+
+
+def test_the_same_country_is_found_in_both_sources():
+    """iptv-org codes the UK "UK"; normalising to GB is what joins these up."""
+    hits = catalogue.search("britain")
+    assert {h.source for h in hits} == {catalogue.FREE_TV, catalogue.IPTV_ORG}
+
+
+def test_search_can_be_restricted_to_one_source():
+    hits = catalogue.search("", source=catalogue.IPTV_ORG)
+    assert hits and all(h.source == catalogue.IPTV_ORG for h in hits)
 
 
 @pytest.mark.parametrize(
@@ -208,18 +247,23 @@ def test_catalogue_search_empty_term_returns_everything():
     assert len(catalogue.search("")) == len(catalogue.load())
 
 
+def test_a_combined_playlist_does_not_match_a_country_search():
+    """Searching "germany" should return Germany, not two whole-world lists."""
+    assert not any(h.combined for h in catalogue.search("germany"))
+
+
 def test_catalogue_search_no_match():
     assert catalogue.search("zzzznotacountry") == []
 
 
 def test_catalogue_tolerates_a_missing_file(tmp_path):
-    assert catalogue.load(tmp_path / "absent.json") == []
+    assert catalogue.load_file(tmp_path / "absent.json") == []
 
 
 def test_catalogue_tolerates_a_corrupt_file(tmp_path):
     bad = tmp_path / "bad.json"
     bad.write_text("{ not json", encoding="utf-8")
-    assert catalogue.load(bad) == []
+    assert catalogue.load_file(bad) == []
 
 
 def test_catalogue_skips_entries_without_a_url(tmp_path):
@@ -229,8 +273,22 @@ def test_catalogue_skips_entries_without_a_url(tmp_path):
         {"name": "No URL", "code": "FR"},
         {"url": "https://h/x.m3u8"},
     ]}), encoding="utf-8")
-    entries = catalogue.load(path)
+    entries = catalogue.load_file(path)
     assert [e.name for e in entries] == ["Good"]
+
+
+def test_loaded_entries_carry_their_source(tmp_path):
+    path = tmp_path / "c.json"
+    path.write_text(json.dumps({"playlists": [
+        {"name": "All", "url": "https://h/all.m3u", "channels": 9, "combined": True},
+        {"name": "Spain", "url": "https://h/es.m3u", "code": "ES", "channels": 3},
+    ]}), encoding="utf-8")
+    entries = catalogue.load_file(path, catalogue.IPTV_ORG)
+    assert [(e.name, e.source, e.combined) for e in entries] == [
+        ("All", catalogue.IPTV_ORG, True),
+        ("Spain", catalogue.IPTV_ORG, False),
+    ]
+    assert entries[1].provider_name == "iptv-org Spain"
 
 
 # --------------------------------------------------------------------------
@@ -253,3 +311,18 @@ http://h/2
     code = countries.code_for_group(group)
     assert code == "GB"
     assert countries.flag_file(code) is not None
+
+
+@pytest.mark.parametrize(
+    "name,expected",
+    [
+        # iptv-org's combined playlist groups by country, using its own spellings.
+        ("Democratic Republic of the Congo", "CD"),
+        ("Republic of the Congo", "CG"),
+        ("Vatican City", "VA"),
+        ("Reunion", "RE"),
+    ],
+)
+def test_iptv_org_country_names_resolve(name, expected):
+    assert countries.code_for_name(name) == expected
+    assert countries.flag_file(expected) is not None

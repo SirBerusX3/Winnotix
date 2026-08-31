@@ -12,6 +12,7 @@ import the awkwardness without the benefit.
 
 from __future__ import annotations
 
+from collections import Counter
 from functools import lru_cache
 from pathlib import Path
 
@@ -466,7 +467,7 @@ class ProvidersPage(QWidget):
         self._palette = palette
         self.flow_page = FlowPage()
 
-        browse_button = QPushButton("  Browse Free-TV playlists…")
+        browse_button = QPushButton("  Browse country playlists…")
         browse_button.setIcon(icons.icon("providers", palette.icon))
         browse_button.clicked.connect(self.browse_clicked)
 
@@ -527,11 +528,15 @@ class ProvidersPage(QWidget):
 
 
 class CataloguePage(QWidget):
-    """Pick one of the Free-TV per-country playlists.
+    """Pick a per-country playlist, from any source Winnotix has an index for.
 
-    The combined playlist is ~2,000 channels; most people want one country.
-    Choosing here just creates an ordinary provider pointing at that playlist's
-    URL, so nothing about it is special afterwards.
+    Two are bundled: Free-TV (~96 playlists) and the much larger iptv-org (186).
+    A country usually appears in both, so the source filter exists to make which
+    is which obvious; entries are otherwise laid out in one flow, grouped by
+    source. Each source's whole-world playlist is offered first.
+
+    Choosing an entry just creates an ordinary provider pointing at that
+    playlist's URL, so nothing about it is special afterwards.
     """
 
     entry_chosen = Signal(object)   # CatalogueEntry
@@ -546,12 +551,22 @@ class CataloguePage(QWidget):
         self.search_entry.setClearButtonEnabled(True)
         self.search_entry.textChanged.connect(self._repopulate)
 
+        self.source_combo = QComboBox()
+        self.source_combo.addItem("All sources", None)
+        for label in catalogue.sources():
+            self.source_combo.addItem(label, label)
+        self.source_combo.currentIndexChanged.connect(
+            lambda _index: self._repopulate(self.search_entry.text())
+        )
+
         self.summary = QLabel("")
         self.summary.setProperty("dim", "true")
 
         top = QHBoxLayout()
         top.setContentsMargins(14, 12, 14, 6)
         top.addWidget(self.search_entry, 1)
+        top.addWidget(QLabel("Source:"))
+        top.addWidget(self.source_combo)
 
         self.flow_page = FlowPage()
 
@@ -577,31 +592,42 @@ class CataloguePage(QWidget):
         self._repopulate("")
         self.search_entry.setFocus()
 
+    @property
+    def selected_source(self) -> str | None:
+        return self.source_combo.currentData()
+
     def _repopulate(self, term: str) -> None:
         self.flow_page.clear()
-        matches = catalogue.search(term, self._entries)
+        matches = catalogue.order(
+            catalogue.search(term, self._entries, source=self.selected_source)
+        )
         for entry in matches:
             tile = Tile(
                 entry.name,
                 entry.channels,
                 flag=countries.flag_file(entry.code),
             )
+            # The name alone does not say which source a tile came from, and the
+            # same country is usually in both.
+            tile.setToolTip(f"{entry.provider_name} — {entry.channels} channels")
             tile.clicked.connect(
                 lambda _checked=False, e=entry: self.entry_chosen.emit(e)
             )
             self.flow_page.add(tile)
 
+        self.summary.setText(self._summary(term, matches))
+
+    def _summary(self, term: str, matches: list) -> str:
         if not self._entries:
-            self.summary.setText(
-                "No catalogue bundled — run tools/generate_catalogue.py."
-            )
-        elif term:
-            self.summary.setText(f"{len(matches)} of {len(self._entries)} playlists")
-        else:
-            total = sum(e.channels for e in self._entries)
-            self.summary.setText(
-                f"{len(self._entries)} playlists, {total} channels in total"
-            )
+            return "No catalogue bundled — run the tools/generate_*_catalogue.py scripts."
+        pool = [e for e in self._entries
+                if not self.selected_source or e.source == self.selected_source]
+        if term:
+            return f"{len(matches)} of {len(pool)} playlists"
+        counts = Counter(e.source for e in pool)
+        breakdown = " + ".join(f"{n} {source}" for source, n in counts.items())
+        total = sum(e.channels for e in pool)
+        return f"{breakdown} — {total} channels in total"
 
 
 class ProviderEditPage(QWidget):
