@@ -326,3 +326,59 @@ http://h/2
 def test_iptv_org_country_names_resolve(name, expected):
     assert countries.code_for_name(name) == expected
     assert countries.flag_file(expected) is not None
+
+
+# --------------------------------------------------------------------------
+# Flag files a Windows checkout mangles
+# --------------------------------------------------------------------------
+
+def _stub(tmp_path, monkeypatch, name: str, body: bytes):
+    """Stand up a flags/ directory holding one file with the given bytes."""
+    flags = tmp_path / "flags"
+    flags.mkdir()
+    (flags / name).write_bytes(body)
+    monkeypatch.setattr(countries, "resources_dir", lambda: tmp_path)
+    countries.flag_file.cache_clear()
+    return flags
+
+
+def test_a_symlink_checked_out_as_text_is_not_offered_to_qt(tmp_path, monkeypatch):
+    """circle-flags symlinks `bq.svg` to `bq-bo.svg`. Git on Windows writes the
+    target's *name* into the file, and Qt logs 'Start tag expected' per lookup."""
+    _stub(tmp_path, monkeypatch, "bq.svg", b"bq-bo.svg")
+    assert countries.flag_file("bq") is None
+
+
+def test_a_real_flag_is_still_found(tmp_path, monkeypatch):
+    _stub(tmp_path, monkeypatch, "gb.svg", b'<svg xmlns="http://www.w3.org/2000/svg"/>')
+    assert countries.flag_file("gb") is not None
+
+
+def test_a_flag_with_an_xml_declaration_is_accepted(tmp_path, monkeypatch):
+    _stub(tmp_path, monkeypatch, "fr.svg",
+          b'<?xml version="1.0"?>\n<svg xmlns="http://www.w3.org/2000/svg"/>')
+    assert countries.flag_file("fr") is not None
+
+
+def test_leading_whitespace_does_not_hide_a_valid_flag(tmp_path, monkeypatch):
+    _stub(tmp_path, monkeypatch, "de.svg",
+          b'\n\n   <svg xmlns="http://www.w3.org/2000/svg"/>')
+    assert countries.flag_file("de") is not None
+
+
+def test_no_bundled_flag_is_ever_handed_to_qt_broken():
+    """The invariant that matters: `flag_file` either returns a real SVG or
+    nothing. Ten codes in the vendored set point at flags that were never
+    vendored, and until `tools/repair_flags.py --fetch` runs they are stubs --
+    which must show as a missing flag, never as a parse error."""
+    countries.flag_file.cache_clear()
+    folder = countries.resources_dir() / "flags"
+    offered = 0
+    for path in folder.glob("*.svg"):
+        result = countries.flag_file(path.stem)
+        if result is None:
+            continue
+        offered += 1
+        head = open(result, "rb").read(64).lstrip().lower()
+        assert head.startswith(b"<svg") or head.startswith(b"<?xml"), path.name
+    assert offered > 200, "the flag set looks empty; is resources/flags vendored?"

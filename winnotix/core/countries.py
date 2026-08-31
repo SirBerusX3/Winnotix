@@ -138,13 +138,33 @@ def code_for_group(group) -> str | None:
     return code_for_name(getattr(group, "name", ""))
 
 
+def _is_svg(path) -> bool:
+    """Whether this file is really SVG, rather than merely named as though it is.
+
+    The upstream circle-flags set uses **symlinks** for codes that share another
+    country's flag -- `uk` to `gb`, `sj` to `no`, and 15 more. A Windows checkout
+    without symlink support writes the *link target's filename* into the file as
+    text, so `bq.svg` contains the nine bytes `bq-bo.svg`. Qt then logs
+    "Start tag expected" on every lookup and draws nothing.
+
+    Checked here rather than trusted, because the failure is one a fresh clone on
+    Windows reintroduces silently. `tools/repair_flags.py` fixes the files.
+    """
+    try:
+        with open(path, "rb") as handle:
+            head = handle.read(64).lstrip().lower()
+    except OSError:
+        return False
+    return head.startswith(b"<svg") or head.startswith(b"<?xml")
+
+
 @lru_cache(maxsize=512)
 def flag_file(code: str | None) -> str | None:
     """Path to the bundled circle-flag SVG for an ISO code, if we have one."""
     if not code:
         return None
     path = resources_dir() / "flags" / f"{code.lower()}.svg"
-    return str(path) if path.is_file() else None
+    return str(path) if _is_svg(path) else None
 
 
 def badges_for_group(name: str) -> list[str]:
