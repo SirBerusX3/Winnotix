@@ -37,11 +37,15 @@ DEFAULTS: dict[str, Any] = {
     # pyxtream supports this; upstream hardcodes it False at its one call
     # site (hypnotix.py:1543) and never exposes it. Default matches upstream.
     "hide-adult-content": False,
+    # On by default because it costs nothing where it is not needed: the proxy
+    # is only ever reached after a host has refused a direct request. See
+    # core/logoproxy.py.
+    "proxy-blocked-logos": True,
 }
 
 # Keys upstream's org.x.hypnotix schema does not have. Kept separate so the
 # tests can still assert we have not drifted from upstream on the shared ones.
-WINNOTIX_KEYS = {"hide-unplayable", "hide-adult-content"}
+WINNOTIX_KEYS = {"hide-unplayable", "hide-adult-content", "proxy-blocked-logos"}
 UPSTREAM_KEYS = set(DEFAULTS) - WINNOTIX_KEYS
 
 

@@ -30,14 +30,21 @@ def favorites_file(tmp_path, monkeypatch):
 
 
 class FakeSettings:
-    """Minimal stand-in for SettingsShim, for Manager's two lookups."""
+    """Minimal stand-in for SettingsShim: Manager's two lookups, and LogoCache's."""
 
     def __init__(self, **overrides):
-        self._values = {"user-agent": "Mozilla/5.0", "http-referer": ""}
+        self._values = {
+            "user-agent": "Mozilla/5.0",
+            "http-referer": "",
+            "proxy-blocked-logos": True,
+        }
         self._values.update(overrides)
 
     def get_string(self, key):
         return self._values.get(key, "")
+
+    def get_boolean(self, key):
+        return bool(self._values.get(key, False))
 
 
 @pytest.fixture
