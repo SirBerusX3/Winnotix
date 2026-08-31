@@ -59,6 +59,7 @@ ADD = "add_page"
 DELETE = "delete_page"
 RESET = "reset_page"
 NEW_CHANNEL = "new_channel_page"
+CATALOGUE = "catalogue_page"
 SPINNER = "spinner_page"
 
 
@@ -157,6 +158,7 @@ class MainWindow(QMainWindow):
         self.providers_page.provider_edit.connect(self._start_edit_provider)
         self.providers_page.provider_delete.connect(self._start_delete_provider)
         self.providers_page.add_clicked.connect(self._start_add_provider)
+        self.providers_page.browse_clicked.connect(self._start_browse_catalogue)
         self.providers_page.reset_clicked.connect(lambda: self.navigate_to(RESET))
         self._add_page(PROVIDERS, self.providers_page)
 
@@ -180,6 +182,11 @@ class MainWindow(QMainWindow):
         self.new_channel_page.accepted.connect(self.on_new_channel_saved)
         self.new_channel_page.cancelled.connect(lambda: self.navigate_to(LANDING))
         self._add_page(NEW_CHANNEL, self.new_channel_page)
+
+        self.catalogue_page = P.CataloguePage()
+        self.catalogue_page.entry_chosen.connect(self.on_catalogue_entry_chosen)
+        self.catalogue_page.cancelled.connect(self.show_providers)
+        self._add_page(CATALOGUE, self.catalogue_page)
 
         self.spinner = P.SpinnerPage()
         self._add_page(SPINNER, self.spinner)
@@ -274,6 +281,9 @@ class MainWindow(QMainWindow):
         elif page in (DELETE, RESET):
             self.back_page = PROVIDERS
             self.header.set_titles(APP_NAME, "Providers")
+        elif page == CATALOGUE:
+            self.back_page = PROVIDERS
+            self.header.set_titles(APP_NAME, "Free-TV playlists")
         elif page == SPINNER:
             self.header.set_titles(APP_NAME, "Loading")
             self.header.back_button.hide()
@@ -405,6 +415,27 @@ class MainWindow(QMainWindow):
 
     def on_provider_activated(self, provider: Provider) -> None:
         self.load_provider(provider)
+
+    def _start_browse_catalogue(self) -> None:
+        self.catalogue_page.reset()
+        self.navigate_to(CATALOGUE)
+
+    def on_catalogue_entry_chosen(self, entry) -> None:
+        """Adding a catalogue playlist just creates an ordinary provider."""
+        existing = next(
+            (p for p in self.providers if p.url == entry.url), None
+        )
+        if existing is not None:
+            self.status.set_status(f"{existing.name} is already in your providers.")
+            self.load_provider(existing)
+            return
+
+        info = ":::".join([entry.provider_name, P.PROVIDER_TYPE_URL, entry.url,
+                           "", "", ""])
+        provider = Provider(name=None, provider_info=info)
+        self.providers.append(provider)
+        self._save_providers()
+        self.load_provider(provider, refresh=True)
 
     def _start_add_provider(self) -> None:
         self.edit_provider = None

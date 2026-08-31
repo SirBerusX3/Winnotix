@@ -1,0 +1,672 @@
+{
+  "source": "https://github.com/Free-TV/IPTV",
+  "combined_url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8",
+  "note": "Per-country playlists. Channel counts are indicative; the playlist itself is always fetched fresh at its url.",
+  "playlists": [
+    {
+      "name": "Albania",
+      "code": "AL",
+      "file": "playlist_albania.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_albania.m3u8",
+      "channels": 17
+    },
+    {
+      "name": "Andorra",
+      "code": "AD",
+      "file": "playlist_andorra.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_andorra.m3u8",
+      "channels": 1
+    },
+    {
+      "name": "Argentina",
+      "code": "AR",
+      "file": "playlist_argentina.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_argentina.m3u8",
+      "channels": 26
+    },
+    {
+      "name": "Armenia",
+      "code": "AM",
+      "file": "playlist_armenia.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_armenia.m3u8",
+      "channels": 3
+    },
+    {
+      "name": "Australia",
+      "code": "AU",
+      "file": "playlist_australia.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_australia.m3u8",
+      "channels": 20
+    },
+    {
+      "name": "Austria",
+      "code": "AT",
+      "file": "playlist_austria.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_austria.m3u8",
+      "channels": 12
+    },
+    {
+      "name": "Azerbaijan",
+      "code": "AZ",
+      "file": "playlist_azerbaijan.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_azerbaijan.m3u8",
+      "channels": 11
+    },
+    {
+      "name": "Belarus",
+      "code": "BY",
+      "file": "playlist_belarus.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_belarus.m3u8",
+      "channels": 18
+    },
+    {
+      "name": "Belgium",
+      "code": "BE",
+      "file": "playlist_belgium.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_belgium.m3u8",
+      "channels": 10
+    },
+    {
+      "name": "Bosnia and Herzegovina",
+      "code": "BA",
+      "file": "playlist_bosnia_and_herzegovina.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_bosnia_and_herzegovina.m3u8",
+      "channels": 18
+    },
+    {
+      "name": "Brazil",
+      "code": "BR",
+      "file": "playlist_brazil.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_brazil.m3u8",
+      "channels": 11
+    },
+    {
+      "name": "Bulgaria",
+      "code": "BG",
+      "file": "playlist_bulgaria.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_bulgaria.m3u8",
+      "channels": 11
+    },
+    {
+      "name": "Canada",
+      "code": "CA",
+      "file": "playlist_canada.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_canada.m3u8",
+      "channels": 20
+    },
+    {
+      "name": "Chad",
+      "code": "TD",
+      "file": "playlist_chad.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_chad.m3u8",
+      "channels": 2
+    },
+    {
+      "name": "Chile",
+      "code": "CL",
+      "file": "playlist_chile.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_chile.m3u8",
+      "channels": 24
+    },
+    {
+      "name": "China",
+      "code": "CN",
+      "file": "playlist_china.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_china.m3u8",
+      "channels": 27
+    },
+    {
+      "name": "Costa Rica",
+      "code": "CR",
+      "file": "playlist_costa_rica.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_costa_rica.m3u8",
+      "channels": 7
+    },
+    {
+      "name": "Croatia",
+      "code": "HR",
+      "file": "playlist_croatia.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_croatia.m3u8",
+      "channels": 26
+    },
+    {
+      "name": "Cyprus",
+      "code": "CY",
+      "file": "playlist_cyprus.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_cyprus.m3u8",
+      "channels": 5
+    },
+    {
+      "name": "Czech Republic",
+      "code": "CZ",
+      "file": "playlist_czech_republic.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_czech_republic.m3u8",
+      "channels": 38
+    },
+    {
+      "name": "Denmark",
+      "code": "DK",
+      "file": "playlist_denmark.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_denmark.m3u8",
+      "channels": 12
+    },
+    {
+      "name": "Documentaries (AR)",
+      "code": "",
+      "file": "playlist_zz_documentaries_ar.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_zz_documentaries_ar.m3u8",
+      "channels": 1
+    },
+    {
+      "name": "Documentaries (EN)",
+      "code": "",
+      "file": "playlist_zz_documentaries_en.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_zz_documentaries_en.m3u8",
+      "channels": 3
+    },
+    {
+      "name": "Dominican Republic",
+      "code": "DO",
+      "file": "playlist_dominican_republic.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_dominican_republic.m3u8",
+      "channels": 1
+    },
+    {
+      "name": "Egypt",
+      "code": "EG",
+      "file": "playlist_egypt.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_egypt.m3u8",
+      "channels": 12
+    },
+    {
+      "name": "Estonia",
+      "code": "EE",
+      "file": "playlist_estonia.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_estonia.m3u8",
+      "channels": 8
+    },
+    {
+      "name": "Faroe Islands",
+      "code": "FO",
+      "file": "playlist_faroe_islands.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_faroe_islands.m3u8",
+      "channels": 2
+    },
+    {
+      "name": "Finland",
+      "code": "FI",
+      "file": "playlist_finland.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_finland.m3u8",
+      "channels": 29
+    },
+    {
+      "name": "France",
+      "code": "FR",
+      "file": "playlist_france.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_france.m3u8",
+      "channels": 32
+    },
+    {
+      "name": "Georgia",
+      "code": "GE",
+      "file": "playlist_georgia.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_georgia.m3u8",
+      "channels": 11
+    },
+    {
+      "name": "Germany",
+      "code": "DE",
+      "file": "playlist_germany.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_germany.m3u8",
+      "channels": 35
+    },
+    {
+      "name": "Greece",
+      "code": "GR",
+      "file": "playlist_greece.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_greece.m3u8",
+      "channels": 67
+    },
+    {
+      "name": "Greenland",
+      "code": "GL",
+      "file": "playlist_greenland.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_greenland.m3u8",
+      "channels": 2
+    },
+    {
+      "name": "Hong Kong",
+      "code": "HK",
+      "file": "playlist_hong_kong.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_hong_kong.m3u8",
+      "channels": 5
+    },
+    {
+      "name": "Hungary",
+      "code": "HU",
+      "file": "playlist_hungary.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_hungary.m3u8",
+      "channels": 47
+    },
+    {
+      "name": "Iceland",
+      "code": "IS",
+      "file": "playlist_iceland.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_iceland.m3u8",
+      "channels": 3
+    },
+    {
+      "name": "India",
+      "code": "IN",
+      "file": "playlist_india.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_india.m3u8",
+      "channels": 32
+    },
+    {
+      "name": "Indonesia",
+      "code": "ID",
+      "file": "playlist_indonesia.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_indonesia.m3u8",
+      "channels": 3
+    },
+    {
+      "name": "Iran",
+      "code": "IR",
+      "file": "playlist_iran.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_iran.m3u8",
+      "channels": 26
+    },
+    {
+      "name": "Iraq",
+      "code": "IQ",
+      "file": "playlist_iraq.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_iraq.m3u8",
+      "channels": 14
+    },
+    {
+      "name": "Ireland",
+      "code": "IE",
+      "file": "playlist_ireland.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_ireland.m3u8",
+      "channels": 18
+    },
+    {
+      "name": "Israel",
+      "code": "IL",
+      "file": "playlist_israel.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_israel.m3u8",
+      "channels": 8
+    },
+    {
+      "name": "Italy",
+      "code": "IT",
+      "file": "playlist_italy.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_italy.m3u8",
+      "channels": 401
+    },
+    {
+      "name": "Kazakhstan",
+      "code": "KZ",
+      "file": "playlist_kazakhstan.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_kazakhstan.m3u8",
+      "channels": 3
+    },
+    {
+      "name": "Kenya",
+      "code": "KE",
+      "file": "playlist_kenya.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_kenya.m3u8",
+      "channels": 5
+    },
+    {
+      "name": "Korea",
+      "code": "KR",
+      "file": "playlist_korea.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_korea.m3u8",
+      "channels": 22
+    },
+    {
+      "name": "Kosovo",
+      "code": "XK",
+      "file": "playlist_kosovo.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_kosovo.m3u8",
+      "channels": 1
+    },
+    {
+      "name": "Latvia",
+      "code": "LV",
+      "file": "playlist_latvia.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_latvia.m3u8",
+      "channels": 5
+    },
+    {
+      "name": "Lebanon",
+      "code": "LB",
+      "file": "playlist_lebanon.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_lebanon.m3u8",
+      "channels": 13
+    },
+    {
+      "name": "Lithuania",
+      "code": "LT",
+      "file": "playlist_lithuania.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_lithuania.m3u8",
+      "channels": 10
+    },
+    {
+      "name": "Luxembourg",
+      "code": "LU",
+      "file": "playlist_luxembourg.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_luxembourg.m3u8",
+      "channels": 3
+    },
+    {
+      "name": "Macau",
+      "code": "MO",
+      "file": "playlist_macau.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_macau.m3u8",
+      "channels": 5
+    },
+    {
+      "name": "Malta",
+      "code": "MT",
+      "file": "playlist_malta.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_malta.m3u8",
+      "channels": 3
+    },
+    {
+      "name": "Mexico",
+      "code": "MX",
+      "file": "playlist_mexico.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_mexico.m3u8",
+      "channels": 14
+    },
+    {
+      "name": "Moldova",
+      "code": "MD",
+      "file": "playlist_moldova.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_moldova.m3u8",
+      "channels": 6
+    },
+    {
+      "name": "Monaco",
+      "code": "MC",
+      "file": "playlist_monaco.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_monaco.m3u8",
+      "channels": 2
+    },
+    {
+      "name": "Mongolia",
+      "code": "MN",
+      "file": "playlist_mongolia.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_mongolia.m3u8",
+      "channels": 41
+    },
+    {
+      "name": "Montenegro",
+      "code": "ME",
+      "file": "playlist_montenegro.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_montenegro.m3u8",
+      "channels": 4
+    },
+    {
+      "name": "Music (EN)",
+      "code": "",
+      "file": "playlist_zz_music_en.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_zz_music_en.m3u8",
+      "channels": 3
+    },
+    {
+      "name": "Netherlands",
+      "code": "NL",
+      "file": "playlist_netherlands.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_netherlands.m3u8",
+      "channels": 13
+    },
+    {
+      "name": "News",
+      "code": "",
+      "file": "playlist_zz_news_en.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_zz_news_en.m3u8",
+      "channels": 55
+    },
+    {
+      "name": "News (AR)",
+      "code": "",
+      "file": "playlist_zz_news_ar.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_zz_news_ar.m3u8",
+      "channels": 9
+    },
+    {
+      "name": "News (ES)",
+      "code": "",
+      "file": "playlist_zz_news_es.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_zz_news_es.m3u8",
+      "channels": 6
+    },
+    {
+      "name": "Nigeria",
+      "code": "NG",
+      "file": "playlist_nigeria.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_nigeria.m3u8",
+      "channels": 12
+    },
+    {
+      "name": "North Korea",
+      "code": "KP",
+      "file": "playlist_north_korea.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_north_korea.m3u8",
+      "channels": 1
+    },
+    {
+      "name": "North Macedonia",
+      "code": "MK",
+      "file": "playlist_north_macedonia.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_north_macedonia.m3u8",
+      "channels": 31
+    },
+    {
+      "name": "Norway",
+      "code": "NO",
+      "file": "playlist_norway.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_norway.m3u8",
+      "channels": 6
+    },
+    {
+      "name": "Paraguay",
+      "code": "PY",
+      "file": "playlist_paraguay.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_paraguay.m3u8",
+      "channels": 2
+    },
+    {
+      "name": "Peru",
+      "code": "PE",
+      "file": "playlist_peru.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_peru.m3u8",
+      "channels": 7
+    },
+    {
+      "name": "Poland",
+      "code": "PL",
+      "file": "playlist_poland.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_poland.m3u8",
+      "channels": 10
+    },
+    {
+      "name": "Portugal",
+      "code": "PT",
+      "file": "playlist_portugal.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_portugal.m3u8",
+      "channels": 15
+    },
+    {
+      "name": "Qatar",
+      "code": "QA",
+      "file": "playlist_qatar.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_qatar.m3u8",
+      "channels": 12
+    },
+    {
+      "name": "Romania",
+      "code": "RO",
+      "file": "playlist_romania.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_romania.m3u8",
+      "channels": 14
+    },
+    {
+      "name": "Russia",
+      "code": "RU",
+      "file": "playlist_russia.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_russia.m3u8",
+      "channels": 58
+    },
+    {
+      "name": "San Marino",
+      "code": "SM",
+      "file": "playlist_san_marino.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_san_marino.m3u8",
+      "channels": 2
+    },
+    {
+      "name": "Saudi Arabia",
+      "code": "SA",
+      "file": "playlist_saudi_arabia.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_saudi_arabia.m3u8",
+      "channels": 14
+    },
+    {
+      "name": "Serbia",
+      "code": "RS",
+      "file": "playlist_serbia.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_serbia.m3u8",
+      "channels": 9
+    },
+    {
+      "name": "Slovakia",
+      "code": "SK",
+      "file": "playlist_slovakia.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_slovakia.m3u8",
+      "channels": 20
+    },
+    {
+      "name": "Slovenia",
+      "code": "SI",
+      "file": "playlist_slovenia.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_slovenia.m3u8",
+      "channels": 1
+    },
+    {
+      "name": "Somalia",
+      "code": "SO",
+      "file": "playlist_somalia.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_somalia.m3u8",
+      "channels": 19
+    },
+    {
+      "name": "Spain",
+      "code": "ES",
+      "file": "playlist_spain.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_spain.m3u8",
+      "channels": 51
+    },
+    {
+      "name": "Sweden",
+      "code": "SE",
+      "file": "playlist_sweden.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_sweden.m3u8",
+      "channels": 16
+    },
+    {
+      "name": "Switzerland",
+      "code": "CH",
+      "file": "playlist_switzerland.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_switzerland.m3u8",
+      "channels": 6
+    },
+    {
+      "name": "Taiwan",
+      "code": "TW",
+      "file": "playlist_taiwan.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_taiwan.m3u8",
+      "channels": 13
+    },
+    {
+      "name": "Trinidad",
+      "code": "TT",
+      "file": "playlist_trinidad.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_trinidad.m3u8",
+      "channels": 6
+    },
+    {
+      "name": "Turkey",
+      "code": "TR",
+      "file": "playlist_turkey.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_turkey.m3u8",
+      "channels": 16
+    },
+    {
+      "name": "Turkmenistan",
+      "code": "TM",
+      "file": "playlist_turkmenistan.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_turkmenistan.m3u8",
+      "channels": 8
+    },
+    {
+      "name": "UK",
+      "code": "GB",
+      "file": "playlist_uk.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_uk.m3u8",
+      "channels": 55
+    },
+    {
+      "name": "Ukraine",
+      "code": "UA",
+      "file": "playlist_ukraine.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_ukraine.m3u8",
+      "channels": 47
+    },
+    {
+      "name": "United Arab Emirates",
+      "code": "AE",
+      "file": "playlist_united_arab_emirates.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_united_arab_emirates.m3u8",
+      "channels": 36
+    },
+    {
+      "name": "USA",
+      "code": "US",
+      "file": "playlist_usa.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_usa.m3u8",
+      "channels": 28
+    },
+    {
+      "name": "Venezuela",
+      "code": "VE",
+      "file": "playlist_venezuela.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_venezuela.m3u8",
+      "channels": 9
+    },
+    {
+      "name": "VOD Italy",
+      "code": "IT",
+      "file": "playlist_zz_vod_it.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_zz_vod_it.m3u8",
+      "channels": 155
+    },
+    {
+      "name": "VOD Movies (EN)",
+      "code": "",
+      "file": "playlist_zz_movies.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_zz_movies.m3u8",
+      "channels": 26
+    },
+    {
+      "name": "日本 / Japan",
+      "code": "JP",
+      "file": "playlist_japan.m3u8",
+      "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_japan.m3u8",
+      "channels": 52
+    }
+  ]
+}

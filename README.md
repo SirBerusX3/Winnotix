@@ -55,9 +55,26 @@ git submodule update --init
 | `winnotix/ui/` | PySide6 interface |
 | `hypnotix/` | Upstream Hypnotix, pinned as a submodule. **Read-only reference** — never edit |
 | `vendor/libmpv/` | libmpv-2.dll (not committed; see its README) |
+| `resources/flags/` | Country flags from [circle-flags](https://github.com/HatScripts/circle-flags) (MIT) |
+| `tools/` | Maintenance scripts (playlist catalogue generation) |
 
 `winnotix/core/xtream.py` is byte-identical to upstream. `winnotix/core/common.py` differs from
 upstream in five places, all documented in its header.
+
+## Playlists
+
+The default provider is the combined [Free-TV/IPTV](https://github.com/Free-TV/IPTV) playlist —
+about 2,000 channels, fetched live, so it stays current on its own.
+
+That repo also publishes per-country playlists. **Providers → Browse Free-TV playlists** lists them
+with flags and channel counts; picking one adds it as an ordinary provider. Loading the UK's 55
+channels beats loading all 2,000 when you only want one country.
+
+The index is generated, not hand-maintained — re-run it when the repo adds countries:
+
+```powershell
+python tools/generate_catalogue.py --fetch
+```
 
 ## Unplayable streams
 
@@ -85,5 +102,7 @@ GPLv3 — see [LICENSE](LICENSE).
 Winnotix is a derivative work of Hypnotix, © Linux Mint and contributors, forked at commit
 `0e0fa1c` (v5.6). `winnotix/core/xtream.py` additionally derives from
 [pyxtream](https://pypi.org/project/pyxtream) by Claudio Olmi; its attribution header is preserved.
+Country flags in `resources/flags/` are from [circle-flags](https://github.com/HatScripts/circle-flags),
+MIT licensed — see `resources/flags/LICENSE.md`.
 
 Winnotix is not affiliated with or endorsed by Linux Mint.

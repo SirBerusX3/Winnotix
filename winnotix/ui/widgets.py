@@ -203,17 +203,58 @@ class StatusBar(QWidget):
 
 
 class Tile(QPushButton):
-    """A FlowBox child: an icon or badge row plus a label and a count."""
+    """A FlowBox child: an optional flag and badges, then a label and a count.
 
-    def __init__(self, text: str, count: int | None = None, parent=None) -> None:
+    Upstream builds the same thing from a GtkBox of images plus a label
+    (hypnotix.py:show_groups). A country flag is shown when the group resolves to
+    one, and badges for language/genre words in its name.
+    """
+
+    def __init__(self, text: str, count: int | None = None,
+                 flag: str | None = None, badges: list[str] | None = None,
+                 parent=None) -> None:
         super().__init__(parent)
         self.setObjectName("Tile")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        label = text if count is None else f"{text} ({count})"
-        self.setText(label)
-        self.setToolTip(label)
+        caption = text if count is None else f"{text} ({count})"
+        self.setToolTip(caption)
         self.setMinimumWidth(190)
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+
+        icons_present = [p for p in ([flag] + list(badges or [])) if p]
+        if not icons_present:
+            # No artwork: let QPushButton lay the text out itself.
+            self.setText(caption)
+            return
+
+        # Imported here rather than at module scope: pages imports widgets, so a
+        # top-level import would be circular.
+        from .pages import svg_file_pixmap
+
+        row = QHBoxLayout(self)
+        row.setContentsMargins(12, 8, 14, 8)
+        row.setSpacing(6)
+        for path in icons_present:
+            image = QLabel()
+            image.setPixmap(svg_file_pixmap(path, 18))
+            image.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+            row.addWidget(image)
+
+        label = QLabel(caption)
+        label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        row.addWidget(label, 1)
+        self._has_layout = True
+
+    def sizeHint(self) -> QSize:
+        """Size to the content when we built our own layout.
+
+        QPushButton does not adopt a child layout's size hint, so without this a
+        long name like "Bosnia and Herzegovina" is clipped and loses its count.
+        """
+        if getattr(self, "_has_layout", False):
+            hint = self.layout().sizeHint()
+            return QSize(max(hint.width(), self.minimumWidth()), hint.height())
+        return super().sizeHint()
 
 
 class FlowPage(QScrollArea):

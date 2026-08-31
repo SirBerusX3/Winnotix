@@ -5,3 +5,8 @@ vendor/libmpv/*.dll
 build/
 dist/
 *.spec
+
+# Local snapshot of Free-TV/IPTV, used only to regenerate
+# resources/free_tv_catalogue.json. The catalogue is committed; the
+# snapshot is not, since Winnotix always fetches playlists live.
+IPTVrepo/

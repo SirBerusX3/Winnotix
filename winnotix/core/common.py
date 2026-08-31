@@ -12,7 +12,14 @@
 #   line 34   GObject.idle_add(...)                     -> mainthread.run_on_main_thread
 #   line 136  os.system("mkdir -p '%s'")                -> os.makedirs(exist_ok=True)
 #
-# Everything below those points is upstream code, unmodified.
+# One addition since: Channel now also reads tvg-id, tvg-country and tvg-chno.
+# Upstream parses only tvg-name, tvg-logo and group-title and leaves Channel.id
+# permanently None, but the Free-TV playlist supplies all three -- tvg-country on
+# 1,788 of its 2,059 entries. Reading the country directly beats upstream's
+# approach of guessing it by matching group names against countries.list.
+# Purely additive: no existing behaviour changes.
+#
+# Everything else is upstream code, unmodified.
 
 import os
 import re
@@ -110,6 +117,8 @@ class Channel:
     def __init__(self, provider, info):
         self.info = info
         self.id = None
+        self.country = None
+        self.channel_number = None
         self.name = None
         self.logo = None
         self.logo_path = None
@@ -127,6 +136,13 @@ class Channel:
                     self.logo = params['tvg-logo'].strip()
                 if "group-title" in params and params['group-title'].strip() != "":
                     self.group_title = params['group-title'].strip().replace(";", " ").replace("  ", " ")
+                # Winnotix addition -- see the note at the top of this file.
+                if "tvg-id" in params and params['tvg-id'].strip() != "":
+                    self.id = params['tvg-id'].strip()
+                if "tvg-country" in params and params['tvg-country'].strip() != "":
+                    self.country = params['tvg-country'].strip().upper()
+                if "tvg-chno" in params and params['tvg-chno'].strip() != "":
+                    self.channel_number = params['tvg-chno'].strip()
             if 'title' in res:
                 self.title = res['title']
         if self.name is None and "," in info:

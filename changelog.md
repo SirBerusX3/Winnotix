@@ -14,6 +14,27 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
 
 ### Added
 
+- **Country flags on category tiles.** Upstream gets these from `circle-flags-svg`, a Debian package
+  with no Windows equivalent, so they have never worked here. 265 ISO-country SVGs are now bundled
+  from [HatScripts/circle-flags](https://github.com/HatScripts/circle-flags) (MIT), covering all 86
+  country codes the Free-TV playlist uses. Language and genre badges from upstream's own artwork are
+  shown alongside.
+- **`tvg-country`, `tvg-id` and `tvg-chno` are now parsed.** Upstream reads only `tvg-name`,
+  `tvg-logo` and `group-title`, leaving `Channel.id` permanently `None`, though the Free-TV playlist
+  supplies all three — `tvg-country` on 1,788 of 2,059 entries. A group's country is taken from a
+  majority of its channels' tags, falling back to upstream's name matching.
+  - Being straight about the payoff: on the Free-TV playlist this changes almost nothing, because its
+    groups are already named exactly after countries, so upstream's match resolves 87 of 95 TV groups
+    on its own. Aliases and noise-word stripping add one more (`VOD Italy`). The tag path earns its
+    place on playlists whose groups are not named after countries. **The visible win is the flags.**
+- **Free-TV playlist picker** (`winnotix/core/catalogue.py`, Providers → *Browse Free-TV playlists*).
+  The repo publishes ~95 per-country playlists next to the combined one, but nothing listing them, so
+  `tools/generate_catalogue.py` generates `resources/free_tv_catalogue.json` from a checkout or from
+  GitHub. Picking one creates an ordinary provider pointing at that URL — nothing about it is special
+  afterwards, and the playlist is always fetched fresh.
+  - Loading the UK's 55 channels instead of the combined 2,059 is dramatically faster.
+  - Search matches name, ISO code, or a country name that resolves to one, so "united kingdom" and
+    "britain" both find the playlist the repo calls "UK".
 - **Blocklist for streams that resolve but do not play** (`winnotix/core/filters.py`,
   `resources/blocklist.json`). Some entries answer with HTTP 200 and a valid HLS manifest whose
   content is filler — a takedown notice or a "watch on our website" slate. Nothing in the playlist
@@ -55,9 +76,12 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
 - **UI tests** (`tests/test_ui.py`) — run under Qt's offscreen platform, no display and no network.
   Cover the provider form's conditional fields, provider round-tripping, group-name cleanup and the
   flow layout's wrapping arithmetic.
+- **Country and catalogue tests** (`tests/test_countries.py`) — attribute parsing, name aliases,
+  group resolution including the no-majority case, flag coverage for every catalogue entry, badge
+  artwork, and catalogue search. **Suite is now 156 passing, 2 xfailed.**
 - **Blocklist tests** (`tests/test_filters.py`) — host/regex matching, removal across every
   collection, group and series cleanup, malformed-rule tolerance, and a check that the *shipped*
-  rule really matches both real Pluto hosts and nothing else. Suite is now **105 passing, 2 xfailed**.
+  rule really matches both real Pluto hosts and nothing else.
 - Bundled `resources/` — the landing-page artwork, badges, `countries.list` and the generic channel
   logo, copied from upstream.
 
@@ -110,6 +134,9 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
   layout's size hint, so the tiles are now sized explicitly.
 - Child `QLabel`s inside tiles inherited the generic `QWidget` background rule and painted an opaque
   rectangle over the tile surface.
+- Category tiles clipped long names once they carried a flag — "Bosnia and Herzegovina" lost its
+  channel count. Same root cause as the landing tiles: `QPushButton` ignores a child layout's size
+  hint, so `Tile` now overrides `sizeHint()`.
 - Note: the three upstream defects below are *not* fixed. They are inherited from Hypnotix and
   deliberately left in place until Phase 3, so a parsing change cannot be confused with a port
   regression.
@@ -154,6 +181,22 @@ a deliberate decision rather than passing silently.
 - **Dead and geo-blocked streams are common in public playlists** — the first Free-TV channel 404s.
   The Phase 0 shell just walks past them silently; the real UI needs visible playback-error feedback.
   Reinforces the "better provider error reporting" item in Phase 5.
+
+### Investigated, no change needed
+
+- **The M3U playlists are not stale.** The default provider URL is a live pointer to
+  `Free-TV/IPTV@master`, which the repo's own README still names as the URL to use, and it updates
+  weekly. A fetch on 2026-08-31 was byte-identical to a checkout of the repo (modulo line endings),
+  so Hypnotix's dormancy has never affected playlist freshness.
+- **We are not behind upstream Hypnotix either** — pinned at `0e0fa1c`, dated 2026-08-25. Two commits
+  landed that day, both cosmetic; substantive work did stop around 2026-02-11.
+- **Upstream stores a per-provider EPG URL but never uses it.** It is a form field that saves and
+  reloads; there is no programme guide in Hypnotix at all.
+- **Our cached playlist is written with CRLF**, 4,119 bytes larger than the source — exactly one byte
+  per line. Upstream's `get_playlist` opens the cache in text mode, so Python translates `
+` on
+  Windows. Harmless, since parsing strips, but it means the cache is not byte-comparable with the
+  source. Left alone to avoid a sixth deviation in `common.py`.
 
 ### Planning
 

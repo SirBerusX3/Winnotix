@@ -12,6 +12,9 @@ import the awkwardness without the benefit.
 
 from __future__ import annotations
 
+from functools import lru_cache
+from pathlib import Path
+
 from PySide6.QtCore import QRectF, QSize, Qt, Signal
 from PySide6.QtGui import QPainter, QPixmap
 from PySide6.QtSvg import QSvgRenderer
@@ -33,6 +36,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ..core import catalogue, countries
 from ..core.common import MOVIES_GROUP, SERIES_GROUP, TV_GROUP
 from ..core.paths import resources_dir
 from . import icons
@@ -73,13 +77,13 @@ def _form_body(*sections) -> QWidget:
     return body
 
 
-def svg_pixmap(name: str, size: int) -> QPixmap:
-    """Render one of the bundled SVGs at `size`, DPI-aware."""
-    path = resources_dir() / "pictures" / name
+@lru_cache(maxsize=512)
+def svg_file_pixmap(path: str | None, size: int) -> QPixmap:
+    """Render an SVG file at `size`, DPI-aware. Cached; flags repeat a lot."""
     pixmap = QPixmap(int(size * 2), int(size * 2))
     pixmap.setDevicePixelRatio(2.0)
     pixmap.fill(Qt.GlobalColor.transparent)
-    if path.is_file():
+    if path and Path(path).is_file():
         renderer = QSvgRenderer(str(path))
         # Without an explicit target rect, render() uses the SVG's default size
         # and draws into the corner at the wrong scale.
@@ -89,6 +93,11 @@ def svg_pixmap(name: str, size: int) -> QPixmap:
         renderer.render(painter, QRectF(0.0, 0.0, float(size), float(size)))
         painter.end()
     return pixmap
+
+
+def svg_pixmap(name: str, size: int) -> QPixmap:
+    """Render one of the bundled pictures/ SVGs."""
+    return svg_file_pixmap(str(resources_dir() / "pictures" / name), size)
 
 
 class LandingPage(QWidget):
@@ -204,7 +213,13 @@ class CategoriesPage(FlowPage):
                 label, count = _remove_word("VOD", group.name), len(group.channels)
             else:
                 label, count = _remove_word("SERIES", group.name), len(group.series)
-            tile = Tile(label, count)
+            tile = Tile(
+                label,
+                count,
+                flag=countries.flag_file(countries.code_for_group(group)),
+                badges=[countries.badge_file(w)
+                        for w in countries.badges_for_group(group.name)],
+            )
             tile.clicked.connect(lambda _checked=False, g=group: self.category_clicked.emit(g))
             self.add(tile)
         return found
@@ -411,12 +426,17 @@ class ProvidersPage(QWidget):
     provider_edit = Signal(object)
     provider_delete = Signal(object)
     add_clicked = Signal()
+    browse_clicked = Signal()
     reset_clicked = Signal()
 
     def __init__(self, palette: Palette, parent=None) -> None:
         super().__init__(parent)
         self._palette = palette
         self.flow_page = FlowPage()
+
+        browse_button = QPushButton("  Browse Free-TV playlists…")
+        browse_button.setIcon(icons.icon("providers", palette.icon))
+        browse_button.clicked.connect(self.browse_clicked)
 
         add_button = QPushButton("  Add a new provider…")
         add_button.setIcon(icons.icon("plus", palette.icon))
@@ -429,6 +449,7 @@ class ProvidersPage(QWidget):
         buttons = QHBoxLayout()
         buttons.setContentsMargins(14, 8, 14, 10)
         buttons.addStretch(1)
+        buttons.addWidget(browse_button)
         buttons.addWidget(add_button)
         buttons.addWidget(reset_button)
 
@@ -471,6 +492,84 @@ class ProvidersPage(QWidget):
             row.addWidget(edit)
             row.addWidget(delete)
             self.flow_page.add(card)
+
+
+class CataloguePage(QWidget):
+    """Pick one of the Free-TV per-country playlists.
+
+    The combined playlist is ~2,000 channels; most people want one country.
+    Choosing here just creates an ordinary provider pointing at that playlist's
+    URL, so nothing about it is special afterwards.
+    """
+
+    entry_chosen = Signal(object)   # CatalogueEntry
+    cancelled = Signal()
+
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
+        self._entries = catalogue.load()
+
+        self.search_entry = QLineEdit()
+        self.search_entry.setPlaceholderText("Filter by country name or code…")
+        self.search_entry.setClearButtonEnabled(True)
+        self.search_entry.textChanged.connect(self._repopulate)
+
+        self.summary = QLabel("")
+        self.summary.setProperty("dim", "true")
+
+        top = QHBoxLayout()
+        top.setContentsMargins(14, 12, 14, 6)
+        top.addWidget(self.search_entry, 1)
+
+        self.flow_page = FlowPage()
+
+        back_button = QPushButton("Back")
+        back_button.clicked.connect(self.cancelled)
+        bottom = QHBoxLayout()
+        bottom.setContentsMargins(14, 6, 14, 10)
+        bottom.addWidget(self.summary, 1)
+        bottom.addWidget(back_button)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.addLayout(top)
+        layout.addWidget(self.flow_page, 1)
+        layout.addWidget(separator())
+        layout.addLayout(bottom)
+
+        self._repopulate("")
+
+    def reset(self) -> None:
+        self.search_entry.clear()
+        self._repopulate("")
+        self.search_entry.setFocus()
+
+    def _repopulate(self, term: str) -> None:
+        self.flow_page.clear()
+        matches = catalogue.search(term, self._entries)
+        for entry in matches:
+            tile = Tile(
+                entry.name,
+                entry.channels,
+                flag=countries.flag_file(entry.code),
+            )
+            tile.clicked.connect(
+                lambda _checked=False, e=entry: self.entry_chosen.emit(e)
+            )
+            self.flow_page.add(tile)
+
+        if not self._entries:
+            self.summary.setText(
+                "No catalogue bundled — run tools/generate_catalogue.py."
+            )
+        elif term:
+            self.summary.setText(f"{len(matches)} of {len(self._entries)} playlists")
+        else:
+            total = sum(e.channels for e in self._entries)
+            self.summary.setText(
+                f"{len(self._entries)} playlists, {total} channels in total"
+            )
 
 
 class ProviderEditPage(QWidget):
