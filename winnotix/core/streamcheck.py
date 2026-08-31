@@ -17,6 +17,15 @@ tried to open::
 Which reads exactly as though the playlist author had glued HTML onto the URL.
 Nothing is wrong with the URL: the host is simply not serving a stream.
 
+A second case, from BBC One Northern Ireland: mpv logged 100 consecutive
+fragment 404s and gave up. The manifest was a live DASH `.mpd`, and it was
+fine -- fetching the live-edge segment directly returned 46 KB of real audio,
+the machine clock agreed with both the origin and the manifest's own
+`UTCTiming` source to within a second, and the channel's HLS URL played. mpv's
+DASH demuxer had simply computed a live edge minutes ahead of the real one and
+was requesting segments that did not exist yet. Left unclassified, that reads
+as a dead channel; it is not.
+
 So this module fetches the URL once, on the failure path only, and says what
 came back instead. `describe_response` is separated from the request so the
 classification can be tested without a network.
@@ -31,6 +40,8 @@ import requests
 SNIFF_BYTES = 2048
 
 HTML_MARKERS = (b"<html", b"<!doctype html", b"<head", b"<body", b"<address")
+
+DASH_TYPES = ("application/dash+xml", "video/vnd.mpeg.dash.mpd")
 
 
 def describe_response(status: int, reason: str, content_type: str, body: bytes) -> str:
@@ -53,6 +64,18 @@ def describe_response(status: int, reason: str, content_type: str, body: bytes) 
         # token, a dead segment host, or a codec mpv could not open.
         return ("The playlist itself loaded, so the channel is off air or its video "
                 "segments are unavailable.")
+
+    if content_type in DASH_TYPES or b"<mpd" in lowered:
+        # Worth calling out separately from HLS. mpv's DASH demuxer computes the
+        # live edge from the manifest's clock arithmetic, and on some live
+        # manifests it overshoots and asks for segments that do not exist yet --
+        # 404 per fragment until it gives up at 100 consecutive failures. The
+        # address is good and the stream is usually playing; the same channel's
+        # HLS URL, where segments are listed rather than calculated, avoids it.
+        return ("The DASH manifest loaded, so the address is good. mpv could not "
+                "fetch its segments — live DASH often fails this way even when the "
+                "stream is fine, and an HLS (.m3u8) URL for the same channel "
+                "usually plays.")
 
     if stripped.startswith(b"HTTP/"):
         # A whole HTTP response inside a 200 body. Misconfigured embedded servers

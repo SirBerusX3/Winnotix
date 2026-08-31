@@ -14,6 +14,25 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
 
 ### Added
 
+- **A live DASH manifest is no longer reported as a dead channel.** `describe_response` classified
+  `application/dash+xml` as "no explanation", so a `.mpd` that mpv could not play produced a banner
+  saying nothing useful. It now names the case, because the case is misleading.
+  - Found on BBC One Northern Ireland (`vs-cmaf-pushb-uk-live…/pc_hd_abr_v2.mpd`), where mpv logged
+    100 consecutive fragment 404s and gave up. **The stream was fine.** The manifest returned 200;
+    fetching the live-edge segment computed from its own `availabilityStartTime` and
+    `duration/timescale` returned 46 KB of real audio, as did the ten before it; the segment mpv
+    asked for was ~62 ahead of the live edge — about four minutes into the future — and 404ed, as
+    did every other future segment. The machine clock agreed with the origin's `Date` header to
+    0.4 s and with the manifest's own `UTCTiming` source (`time.akamai.com`) to 0.6 s, so this is
+    not clock drift: mpv's DASH demuxer overshoots the live edge on this manifest.
+  - **Nor is it geo-blocking**, despite iptv-org tagging the channel `[Geo-blocked]`. The channel's
+    HLS URL plays from here: master → variant with 1,875 segments listed, last segment 283 KB of
+    video.
+  - The message says the address is good and points at HLS, where segments are listed rather than
+    calculated. Verified that `vs-cmaf-pushb` → `vs-hls-pushb` and `.mpd` → `.m3u8` works for BBC's
+    `pc_hd_abr_v2` and `iptv_hd_abr_v1` profiles (5 of 5 sampled) but not `hevc_*`, which is
+    DASH-only (0 of 3). No URL is rewritten automatically — that would be guessing on one
+    broadcaster's scheme.
 - **iptv-org playlists, as a second catalogue source** (`resources/iptv_org_catalogue.json`,
   `tools/generate_iptv_org_catalogue.py`). [iptv-org/iptv](https://github.com/iptv-org/iptv) is a far
   larger collection than Free-TV — 186 per-country playlists against 96, and 1,465 US channels
@@ -43,7 +62,7 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
   - Nothing is vendored: `newIPTVrepo/` is gitignored like the existing Free-TV snapshot. The
     catalogue records URLs only, and playlists are always fetched live.
   - Covered by tests for source tagging, combined-entry ordering, cross-source search and the
-    picker's source filter. **Suite is now 223 passing, 2 xfailed.**
+    picker's source filter. **Suite is now 226 passing, 2 xfailed.**
 - **Xtream API providers.** `xtream.py` (937 lines, byte-identical to upstream) was copied across in
   Phase 1 and imported by nothing; the app refused Xtream providers outright. It is now wired up:
   live channels, movies, series and categories all load, and a series' seasons and episodes are

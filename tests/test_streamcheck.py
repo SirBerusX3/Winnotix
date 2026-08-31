@@ -134,3 +134,35 @@ def test_diagnose_survives_network_failures(monkeypatch, exception, expected):
 
 def test_diagnose_ignores_an_empty_url():
     assert streamcheck.diagnose("") == ""
+
+
+# The opening of https://vs-cmaf-pushb-uk-live.akamaized.net/.../pc_hd_abr_v2.mpd
+# (BBC One Northern Ireland), which mpv reports only as 100 fragment 404s.
+DASH_MANIFEST = (
+    b'<MPD xmlns="urn:mpeg:dash:schema:mpd:2011" type="dynamic" '
+    b'availabilityStartTime="1970-01-01T00:00:12Z" minBufferTime="PT10S" '
+    b'timeShiftBufferDepth="PT2H" maxSegmentDuration="PT4S">\n'
+    b'  <Period id="1" start="PT0S">\n'
+    b'    <AdaptationSet id="1" contentType="audio" mimeType="audio/mp4">\n'
+)
+
+
+def test_a_dash_manifest_is_not_reported_as_a_dead_link():
+    """The manifest is fine; mpv's DASH demuxer overshoots the live edge."""
+    message = streamcheck.describe_response(
+        200, "OK", "application/dash+xml", DASH_MANIFEST
+    )
+    assert "DASH manifest loaded" in message
+    assert "address is good" in message
+    assert ".m3u8" in message  # the workaround worth knowing
+
+
+def test_dash_is_recognised_without_a_content_type():
+    message = streamcheck.describe_response(200, "OK", "", DASH_MANIFEST)
+    assert "DASH" in message
+
+
+def test_dash_is_not_mistaken_for_a_web_page():
+    """Both are angle brackets; only one means "there is nothing here"."""
+    dash = streamcheck.describe_response(200, "OK", "application/dash+xml", DASH_MANIFEST)
+    assert "web page" not in dash
