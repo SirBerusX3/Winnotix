@@ -348,3 +348,46 @@ def test_searching_the_picker_spans_both_sources(catalogue_page):
     catalogue_page.search_entry.setText("britain")
     assert catalogue_page.flow_page.flow.count() == 2
     assert "2 of" in catalogue_page.summary.text()
+
+
+# --------------------------------------------------------------------------
+# Bundled artwork
+# --------------------------------------------------------------------------
+
+def test_the_app_icon_carries_the_sizes_windows_asks_for(qapp):
+    from winnotix.ui.icons import app_icon
+
+    icon = app_icon()
+    assert not icon.isNull()
+    sizes = {s.width() for s in icon.availableSizes()}
+    # 16 for the title bar, 32 for the task bar, 256 for Alt-Tab and Explorer.
+    assert {16, 32, 256} <= sizes
+
+
+def test_the_placeholder_is_never_upscaled_onto_a_poster(qapp):
+    """It was Hypnotix's own 22x22 logo, so a 200x200 VOD poster was a 9x
+    upscale of a 22px image."""
+    from PySide6.QtGui import QPixmap
+
+    from winnotix.core.paths import resources_dir
+    from winnotix.ui.logos import POSTER_SIZE
+
+    pixmap = QPixmap(str(resources_dir() / "generic_tv_logo.png"))
+    assert not pixmap.isNull()
+    # Twice the poster, so it still downscales on a HiDPI screen.
+    assert pixmap.width() >= POSTER_SIZE.width() * 2
+    assert pixmap.height() >= POSTER_SIZE.height() * 2
+
+
+def test_we_no_longer_ship_hypnotix_own_logo():
+    """Roadmap section 8: do not ship Mint branding or the Hypnotix icon set."""
+    import hashlib
+
+    from winnotix.core.paths import project_root, resources_dir
+
+    upstream = project_root() / "hypnotix" / "usr" / "share" / "hypnotix" / "generic_tv_logo.png"
+    if not upstream.is_file():
+        pytest.skip("the vendored upstream tree is not present")
+    ours = resources_dir() / "generic_tv_logo.png"
+    assert (hashlib.sha256(ours.read_bytes()).hexdigest()
+            != hashlib.sha256(upstream.read_bytes()).hexdigest())

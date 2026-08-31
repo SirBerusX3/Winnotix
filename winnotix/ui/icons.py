@@ -18,6 +18,14 @@ from PySide6.QtCore import QByteArray, QRectF, QSize, Qt
 from PySide6.QtGui import QIcon, QPainter, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 
+from ..core.paths import resources_dir
+
+#: The application mark, as opposed to the stroke icons below: a real file,
+#: because it is artwork rather than a glyph. The .ico carries the whole 16..256
+#: ladder, so Qt and Windows each take the size they want without rescaling.
+#: Regenerate from assets/ with tools/generate_icons.py.
+APP_ICON = "appicon.ico"
+
 # Paths stroked with round caps/joins unless the entry is marked as filled.
 _STROKE: dict[str, str] = {
     "back":             "M15 5 L8 12 L15 19",
@@ -98,3 +106,9 @@ def icon(name: str, colour: str = "#000000", size: int = 20, width: float = 1.8)
 
 def available() -> list[str]:
     return sorted(set(_STROKE) | set(_FILLED))
+
+
+@lru_cache(maxsize=1)
+def app_icon() -> QIcon:
+    """The Winnotix mark, for the window, the task bar, Alt-Tab and dialogs."""
+    return QIcon(str(resources_dir() / APP_ICON))
