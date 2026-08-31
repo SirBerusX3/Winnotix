@@ -14,6 +14,153 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
 
 ### Added
 
+- **Flags that a Windows checkout had quietly broken** (`winnotix/core/countries.py`,
+  `tools/repair_flags.py`). Upstream circle-flags uses **symlinks** for codes that
+  share another country's flag — `uk` → `gb`, `sj` → `no`, 17 in all. Git on Windows
+  without symlink support writes the *link target's filename* into the file, so
+  `bq.svg` was nine bytes reading `bq-bo.svg`, and Qt logged "Start tag expected" on
+  every lookup while drawing nothing.
+  - Seven pointed at flags already vendored and were repaired in place. Nine of the
+    rest point at subdivision or non-ISO flags never vendored (`sh-ac`,
+    `european_union`, `other/united_nations`); none appears in any catalogue or
+    playlist. Bonaire, the one that did, now has a working flag.
+  - `flag_file()` checks that a file really is SVG rather than trusting its name, so
+    an unrepaired checkout loses a flag instead of spraying parse errors. This is the
+    part that matters: the breakage returns silently on every fresh Windows clone.
+  - `tools/repair_flags.py` resolves what it can locally and `--fetch` downloads the
+    rest from upstream.
+- **A portable build** (`winnotix.spec`, `launcher.py`, `python build.py package`) —
+  roadmap Phase 4. One folder in `dist/Winnotix`, no installer, `--zip` for a
+  distributable archive.
+  - **One-folder rather than one-file**, for a specific reason: python-mpv resolves
+    libmpv at *import* time (`core/mpvloader.py`), and one-file unpacks to a fresh
+    temp directory each launch that the loader would have to chase.
+  - Nothing in the app needed changing to support being frozen. `paths.project_root()`
+    already returned `sys._MEIPASS`, and `mpvloader._candidate_dirs()` already yielded
+    the executable's directory — both written in anticipation of this, long before it.
+    `resources/` and `vendor/libmpv/` land exactly where those two already look.
+  - `launcher.py` exists because PyInstaller freezes a script, and
+    `winnotix/__main__.py` is not one: its relative imports only resolve when the
+    package is imported. Development still uses `python -m winnotix`.
+  - 38 unused Qt modules are excluded — WebEngine, Quick/QML, 3D, Charts,
+    Multimedia and the rest — worth roughly half the bundle. QtNetwork and QtOpenGL
+    are deliberately left in: Qt reaches for those internally even though the app
+    never imports them.
+  - **18 MB of Qt that nothing reaches is filtered out.** The Python-level `excludes`
+    cannot see it: PyInstaller's PySide6 hook collects Qt's own DLLs as *data*, and
+    two plugins drag in trees of their own — `platforminputcontexts` pulls the
+    virtual keyboard, which pulls Qml and Quick (13 MB), and the PDF image format
+    pulls Qt6Pdf (4.6 MB). The spec names what to drop rather than filtering plugins
+    wholesale, because the SVG plugins beside them draw every flag and icon.
+    Verified after rebuilding: Qml, Quick, VirtualKeyboard and Pdf gone; Core, Gui,
+    Widgets, Svg, Network and OpenGL present, along with the Windows platform
+    plugin, both SVG plugins, the TLS backends and the styles.
+  - `package` refuses to start when the previous `Winnotix.exe` is running. PyInstaller
+    deletes `dist/` before rebuilding and Windows will not delete a running
+    executable, so this otherwise surfaced as a `PermissionError` from inside
+    `shutil` — having already *partially* deleted the previous build, destroying it
+    without replacing it.
+  - `package` checks after building that `resources/` and `vendor/libmpv/` actually
+    made it into the bundle. Their absence is this build's most likely failure and
+    would otherwise surface as missing flags and a dead player rather than an error.
+  - `*.spec` stays gitignored — that rule is for the specs PyInstaller generates —
+    with an exception for this hand-written one.
+- **yt-dlp can be downloaded and is actually used** (`winnotix/core/ytdlp.py`,
+  Preferences → yt-dlp). This closes the last named Phase 3 item, and the three Linux
+  dependencies roadmap section 7 lists against it: the `wget`/`chmod` bootstrap (#2),
+  the hardcoded `/usr/bin/yt-dlp` (#4), and the `~/.cache` paths (#5).
+  - **A fourth defect was not a portability one.** Upstream downloads its local copy
+    to `~/.cache/hypnotix/yt-dlp` and then never tells mpv it exists — it passes
+    `ytdl=True` and nothing more (`hypnotix.py:1645`), while mpv's ytdl_hook resolves
+    the binary *by name, through PATH*. So upstream's `use-local-ytdlp` downloads a
+    binary that never runs. `apply_preference()` is the missing half: it puts the
+    chosen copy's directory on PATH, which is also why it avoids mpv's
+    `script-opts` escaping rules — a Windows path is exactly the kind of value
+    those rules exist for.
+  - Two smaller repairs to the same upstream function: it calls `os.chdir` and never
+    changes back, so clicking Update in Preferences permanently moves the process
+    working directory; and it verifies nothing about what it downloaded. Here the
+    transfer is checked against the SHA-256 the release publishes. Both files come
+    from the same host over HTTPS, so that is an integrity check rather than a trust
+    anchor — what it reliably catches is a truncated download becoming an executable
+    that fails confusingly later. A missing checksum list does not block the install,
+    but the UI says the copy was not verified.
+  - Preferences now shows both versions — the system copy and ours — with a button
+    that reads Download or Update depending on which applies, disabled with a
+    percentage while a transfer runs. Before this the panel had a version label,
+    and an `ytdlp_update_clicked` signal that nothing emitted and nothing received.
+  - A failed download never disturbs a working copy: bytes go to a `.part` file and
+    are only renamed into place once the checksum matches.
+  - Turning the setting on mid-session takes effect without a restart where mpv
+    allows it. Rather than guess whether `ytdl` is settable at run time, the option
+    is set and then read back, and the status line says which of the two happened.
+- **Winnotix has its own icon** (`assets/`, `resources/appicon.ico`,
+  `resources/generic_tv_logo.png`, `tools/generate_icons.py`). The placeholder shown
+  for a channel with no usable logo was Hypnotix's own mark, byte-identical to
+  upstream's — which roadmap section 8 asks us not to ship — and only **22x22**, so
+  every 200x200 VOD poster was a 9x upscale of a 22-pixel image.
+  - The blue mark is now the window, task bar, Alt-Tab and dialog icon, set on the
+    QApplication so every dialog inherits it. The app had no icon at all before.
+  - Windows files a task bar button under the process that launched it, so a
+    Python-hosted app shows Python's icon beside its own window. `main()` now claims
+    an explicit AppUserModelID before the first window exists, which is what makes the
+    task bar use ours.
+  - The grey mark replaces the channel-logo placeholder at 512x512 — twice the poster
+    size, so it still downscales on a HiDPI screen rather than being blown up.
+  - `assets/` keeps the masters (2048px PNGs and a full 16..256 .ico ladder, blue and
+    grey); `resources/` keeps only what the app loads. `tools/generate_icons.py`
+    derives the second from the first, using Qt rather than Pillow so it runs in the
+    project venv with no added dependency.
+  - The About dialog still credits Hypnotix and Linux Mint. That is a GPLv3
+    obligation, and separate from shipping their artwork.
+- **Logos load in the United Kingdom again** (`winnotix/core/logoproxy.py`,
+  `winnotix/ui/logos.py`). imgur withdrew from the UK in September 2025 and now serves
+  nothing to a UK address. That is not a long-tail gap for an IPTV client: imgur hosts
+  **1,457 of Free-TV's 2,059 channel logos (71%) and 7,729 of iptv-org's 14,310 (54%)**,
+  so a UK user saw a placeholder on most of the app.
+  - Picking a different URL does not fix it. iptv-org's own logo database has a
+    non-imgur alternative for only **358** of them. Fetching the *same* URL from
+    somewhere else does, so a refused logo is retried through DuckDuckGo's image
+    proxy, which makes the request from its own servers.
+  - **Which proxy is not a free choice.** imgur refuses most of them. Measured
+    against the same imgur logo: `images.weserv.nl` returned 404 for all six URL
+    forms (imgur refuses its servers outright), Google's gadget proxy is
+    discontinued, allorigins and codetabs were both down with 522, corsproxy.io now
+    requires an API key, web.archive.org timed out, and Photon simply redirected
+    back to imgur without proxying anything. DuckDuckGo returned a real PNG.
+    imgur's own thumbnail forms (`_d.webp`, the `s`/`m` size suffixes) serve the
+    block image too, so there is no way around this at the origin.
+  - **The refusal does not look like one.** imgur answers a UK request with HTTP 200,
+    `Content-Type: image/png`, and a real 336x478 PNG reading "Content not viewable in
+    your region" — so no status code, header or decode check can tell it from a logo,
+    and it was cached like any other. In one real cache **833 of 1,279 files were
+    byte-identical copies of it**, and because a cached file is never re-fetched, each
+    one had permanently poisoned that channel's logo.
+  - `SentinelWatch` recognises it by content hash, checked only against images whose
+    length already matches, so a real logo is settled by a `len()` and never hashed.
+    Relying on one hardcoded digest would be brittle — the day imgur redraws that
+    image every logo silently reverts — so any image a host repeats across four
+    *different* URLs is promoted to a sentinel too, and copies stored before the
+    promotion are deleted. Real logos differ; a refusal is the same picture every time.
+  - Caches from before this change are cleaned once at startup. The scan hashes only
+    size-matching files, so it costs little more than a directory walk.
+  - **The proxy is a fallback, never a rewrite.** The direct fetch is tried first, so a
+    user outside the blocked region never contacts a third party at all, and only the
+    logo address is ever sent.
+  - **Only refusals are retried** — connection errors, timeouts, 403/429/451, a block
+    page served as `200 text/html`, and a known sentinel image. A 404 is not: the image
+    is genuinely gone, and retrying it would double the requests for every dead logo in
+    a playlist, of which public playlists have plenty.
+  - **A host that keeps refusing is learned.** One wasted round trip per logo across
+    9,185 imgur URLs would trade one problem for another, so after three refusals with
+    no success a host goes straight to the proxy for the rest of the session. The block
+    costs three wasted requests in total, not three thousand.
+  - Off switch in Preferences → Channel logos, for anyone who would rather Winnotix
+    talked to nobody but the playlist's own hosts. Toggling it clears what has been
+    learned so the visible rows retry immediately, with no restart and no reload.
+  - Cache paths are unchanged — still derived from the original URL by
+    `common.py:Channel.__init__` — so a cache of real logos stays valid and turning the
+    proxy off orphans nothing.
 - **Closing the window no longer hangs after a stream that logs errors**
   (`winnotix/core/mpvlog.py`, `mpvloader.shutdown()`). Reported against BBC HD
   channels, which play while spamming the terminal — and then froze the app on close. One cause

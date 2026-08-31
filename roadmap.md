@@ -1,9 +1,9 @@
 # Winnotix — Hypnotix Windows Port Roadmap
 
-> **Status:** Phases 0–2 complete; Phase 3 well under way. This document is the *plan* and is kept
-> as written except where the work proved it wrong — [changelog.md](changelog.md) is the record of
-> what has actually been done. Remaining in Phase 3: yt-dlp bootstrapping and the three inherited
-> upstream parsing defects in §5.
+> **Status:** Phases 0–2 complete; Phase 3 complete except for the three inherited upstream parsing
+> defects in §5. This document is the *plan* and is kept as written except where the work proved it
+> wrong — [changelog.md](changelog.md) is the record of what has actually been done. Phase 4 is
+> built as a portable one-folder app (`python build.py package`); an installer remains optional.
 > **Revision 2** — rewritten after auditing the actual upstream source. Revision 1 over-estimated
 > the difficulty of MPV embedding and settings, and missed several real Linux dependencies.
 > See [Appendix A](#appendix-a--what-changed-from-revision-1) for what changed and why.
@@ -227,9 +227,10 @@ Restore in descending order of value-per-unit-effort:
 9. **Dark mode** — drop `XApp` entirely; use `QGuiApplication.styleHints().colorScheme()`
 10. **i18n** — repoint `bindtextdomain` at a bundled locale dir; the 60+ existing `.po` files work as-is
 
-**Done:** 1–9, plus visible playback-error feedback — pencilled in for Phase 5 polish, pulled
+**Done:** 1–9, plus the yt-dlp bootstrap (§7 #2) and visible playback-error feedback — pencilled in for Phase 5 polish, pulled
 forward because public playlists rot fast enough that a silent failure is a parity gap, not polish.
-**Still open:** 10, plus the yt-dlp bootstrap (§7 #2). Two corrections the work forced:
+**Still open:** 10 only, and the recommendation there is to drop it. Three corrections the work
+forced:
 
 - **Item 5 badly under-read the Xtream half.** "`xtream.py` already supplies the data" is true of the
   HTTP layer and the model classes, and false of everything joining them to a Provider. Upstream's
@@ -238,6 +239,10 @@ forward because public playlists rot fast enough that a silent failure is a pari
   stream-type namespaces that reuse them, an episode loop nested inside its season loop, a URL built
   from an un-normalised stream type, and a constructor that raises on a rejection payload. See the
   header of `winnotix/core/xtream_loader.py`. `xtream.py` itself stays byte-identical.
+- **The yt-dlp item was mis-scoped as a port.** §7 #2 reads as three Linux calls to replace.
+  The real defect is that upstream never puts its downloaded copy on PATH, so `use-local-ytdlp`
+  has never done anything on any platform. Porting the bootstrap faithfully would have reproduced
+  a feature that does not work. See the header of `winnotix/core/ytdlp.py`.
 - **Item 10 is probably not worth doing.** The `.po` files key off upstream's Glade msgids; our UI
   strings are hand-written Qt and mostly will not match, so the catalogue is not the free win this
   list assumed. Recommend dropping it rather than half-translating the app.
@@ -364,6 +369,63 @@ gain in an app that is I/O- and decode-bound — mpv does the heavy lifting eith
 rejected: embedding a real hardware-accelerated player is the app's whole purpose.
 
 ---
+
+## 11. Parked — worth doing, not yet scheduled
+
+### Code signing for the portable build
+
+PyInstaller output has a shape antivirus heuristics dislike -- unsigned, self-extracting,
+bundling an interpreter -- regardless of what it contains. This is not hypothetical here:
+Norton spawned a 250 MB scanner process two seconds after `package` wrote the executable,
+and the handle it took kept the terminated process alive long enough to block the next
+build. What that costs a developer is an annoyance; what it costs someone downloading
+`Winnotix-portable.zip` is a warning, or a silent quarantine.
+
+Signing is the only real remedy. Windows SmartScreen also grants reputation to unsigned
+binaries eventually, but on download volume this project will not have.
+
+Worth checking before spending anything -- details and prices move, so treat these as
+leads rather than facts:
+
+- **SignPath Foundation** offers free code signing to open-source projects. Winnotix is
+  GPLv3, so this is the first door to knock on.
+- **Azure Trusted Signing** is the cheap commercial option, billed monthly rather than as
+  a yearly certificate, though eligibility rules have changed more than once.
+- A conventional **OV certificate** from a CA is the fallback. Since the CA/Browser Forum
+  moved to requiring hardware-backed keys, the token or cloud HSM is part of the cost.
+
+Whichever route, signing belongs in `build.py package` as a step after COLLECT, so an
+unsigned build is never what gets distributed by accident.
+
+### Route single-series channels into the Series category
+
+For an M3U provider every group is a `TV_GROUP`, so the landing page's **Movies** and
+**Series** tiles are permanently empty — those two only ever fill from an Xtream provider,
+because `Group.__init__` decides the type by looking for the words "VOD" and "SERIES" in
+the group name (`common.py:88-95`), and a country-grouped playlist never has them.
+
+Plenty of channels in these playlists are not channels in any useful sense: they are a
+single show on a loop — South Park, 90210, and hundreds like them. They belong under
+Series, laid out the way TV Channels already lays out countries.
+
+**This is probably not the hand-sorting job it looks like.** iptv-org already classifies
+its channels, and publishes the classification two ways:
+
+- `https://iptv-org.github.io/api/channels.json` — a `categories` array per channel
+  (`series`, `movies`, `animation`, …), keyed by the same `tvg-id` our playlists carry
+- `https://iptv-org.github.io/iptv/index.category.m3u` — the same data as a playlist,
+  grouped by category
+
+Either gives a `tvg-id` → category mapping, so the work is a catalogue-generation step
+plus a routing rule, not a manual pass over 14,310 entries. `tools/` already has the
+pattern for this in `generate_iptv_org_catalogue.py`.
+
+Free-TV publishes no categories, so its channels would stay under TV unless matched
+through iptv-org's ids, which most of them carry.
+
+Open questions worth settling before starting: whether a "series" channel showing one
+show on a loop should present as a series at all when there are no episodes to pick from,
+and what the Movies tile does with a channel that is a 24/7 film rotation.
 
 ## Appendix A — What changed from revision 1
 
