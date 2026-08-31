@@ -39,7 +39,7 @@ from ..core.common import (
     idle_function,
 )
 from ..core.settings import DEFAULTS, SettingsShim
-from ..core import paths, streamcheck, xtream_loader
+from ..core import mpvlog, paths, streamcheck, xtream_loader
 from . import pages as P
 from .logos import LogoCache
 from .theme import current_palette, stylesheet
@@ -51,6 +51,9 @@ APP_NAME = "Winnotix"
 
 # MpvEventEndFile.ERROR -- mpv gave up opening or decoding the file.
 END_FILE_ERROR = 4
+
+# How long to wait for mpv to stop before closing the window regardless.
+MPV_SHUTDOWN_TIMEOUT = mpvloader.SHUTDOWN_TIMEOUT
 
 LANDING = "landing_page"
 CATEGORIES = "categories_page"
@@ -106,6 +109,8 @@ class MainWindow(QMainWindow):
         self.mpv = None
         self.volume = 100
         self._is_fullscreen = False
+        self._mpv_log = mpvlog.LogThrottle()
+        self._diagnosing: set[str] = set()
 
         self._build_ui()
         self._build_shortcuts()
@@ -728,9 +733,11 @@ class MainWindow(QMainWindow):
         self.mpv.observe_property("core-idle", self._on_core_idle)
         self.mpv.register_event_callback(self._on_mpv_event)
 
-    @staticmethod
-    def _on_mpv_log(level: str, prefix: str, text: str) -> None:
-        print(f"[mpv/{level}] {prefix}: {text.strip()}")
+    def _on_mpv_log(self, level: str, prefix: str, text: str) -> None:
+        """mpv's event thread. Must stay cheap -- see core/mpvlog.py."""
+        line = self._mpv_log.line(level, prefix, text)
+        if line is not None:
+            print(line)
 
     def _on_core_idle(self, _name, _value) -> None:
         pass  # observed so mpv keeps the property live for the info dialog
@@ -756,7 +763,11 @@ class MainWindow(QMainWindow):
             return  # a stale failure from a channel we have already left
         self.status.set_status(f"Could not play {channel.name}: {reason}")
         self.channels.show_message(f"{channel.name} would not play — {reason}. Checking why…")
-        self._diagnose_stream(channel)
+        # One probe per URL at a time: a stream that fails repeatedly should not
+        # accumulate worker threads, each holding an 8-second read timeout.
+        if channel.url not in self._diagnosing:
+            self._diagnosing.add(channel.url)
+            self._diagnose_stream(channel)
 
     @async_function
     def _diagnose_stream(self, channel) -> None:
@@ -769,6 +780,7 @@ class MainWindow(QMainWindow):
         self.stream_diagnosed.emit(channel, detail)
 
     def _on_stream_diagnosed(self, channel, detail: str) -> None:
+        self._diagnosing.discard(channel.url)
         if channel is not self.active_channel or not detail:
             return
         self.status.set_status(f"{channel.name}: {detail}")
@@ -972,10 +984,12 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event) -> None:
         self.logo_cache.shutdown()
-        if self.mpv is not None:
-            try:
-                self.mpv.terminate()
-            except Exception:
-                pass
-            self.mpv = None
+        player, self.mpv = self.mpv, None
+        if player is not None:
+            self._shutdown_mpv(player)
         super().closeEvent(event)
+
+    def _shutdown_mpv(self, player) -> None:
+        if not mpvloader.shutdown(player, event_callback=self._on_mpv_event,
+                                  timeout=MPV_SHUTDOWN_TIMEOUT):
+            print("[winnotix] mpv did not shut down in time; closing anyway.")

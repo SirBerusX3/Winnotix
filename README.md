@@ -126,8 +126,10 @@ not corrupt and the URL is not malformed; the host simply has no stream on it.
 
 **A flood of fragment 404s on a `.mpd`.** mpv's DASH demuxer works out the live edge by arithmetic on
 the manifest's clock, and on some live manifests it overshoots and requests segments that do not
-exist yet — 404 per fragment until it gives up at 100. The channel is usually playing normally. If
-the same channel has an HLS URL, use that: HLS lists its segments instead of calculating them.
+exist yet — 404 per fragment until it gives up at 100. The channel often keeps playing throughout.
+Repeated messages are collapsed in the terminal (`… (+74 repeats suppressed)`), so the log stays
+readable and, more importantly, closing the window stays responsive. If the same channel has an HLS
+URL, prefer it: HLS lists its segments instead of calculating them.
 Many BBC regional channels are affected. Most have an HLS equivalent: swap `vs-cmaf-pushb` for
 `vs-hls-pushb` and `.mpd` for `.m3u8`, then add it with the **+** button on the landing page. That
 works for the `pc_hd_abr_v2` and `iptv_hd_abr_v1` profiles; the `hevc_*` ones are DASH-only and

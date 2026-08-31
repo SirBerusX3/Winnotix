@@ -14,6 +14,30 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
 
 ### Added
 
+- **Closing the window no longer hangs after a stream that logs errors**
+  (`winnotix/core/mpvlog.py`, `mpvloader.shutdown()`). Reported against BBC HD
+  channels, which play while spamming the terminal — and then froze the app on close. One cause
+  behind both symptoms.
+  - mpv hands every log line to its client **on its own event thread**, and python-mpv calls the
+    handler synchronously from that thread's loop. `MPV.terminate()` destroys the handle and then
+    joins that thread with **no timeout** (`mpv.py:1171-1173`), and the thread leaves its loop only
+    on the SHUTDOWN event — so it must first drain everything queued ahead of it, running our
+    handler and a console write for each. A backlog of thousands is not just noise on screen; it is
+    what made closing look like a hang.
+  - Measured against a BBC DASH channel: **mpv sent 2,120 log messages in 30 seconds**. Worse, a
+    player stuck in libmpv's own retry loop never reaches SHUTDOWN at all — `terminate()` had still
+    not returned after 30 seconds, even with logging off and playback stopped first.
+  - `LogThrottle` keeps one counter per distinct message and prints each at most once every five
+    seconds with a note of what it held back. On that same channel: **2,120 messages in, 38 printed
+    — 98.2% suppressed**, and every *kind* of error still shown. Digits are masked when forming the
+    key, because the worst offender is `stream: Failed to open …/465675009.m4s`, one textually
+    unique message per segment; masking took the tracked set from 109 entries to 9.
+  - `mpvloader.shutdown()` silences the log at source, detaches the event callback, terminates on a
+    throwaway thread and stops waiting after 1.5 s. A healthy stream terminates in 0.06 s, so the
+    budget is ample; a stuck one now closes the window in 1.5 s instead of never. Covered by tests
+    using a player whose `terminate()` blocks.
+  - Also guards `_diagnose_stream` so a repeatedly failing URL cannot accumulate worker threads,
+    each holding an 8-second read timeout.
 - **A live DASH manifest is no longer reported as a dead channel.** `describe_response` classified
   `application/dash+xml` as "no explanation", so a `.mpd` that mpv could not play produced a banner
   saying nothing useful. It now names the case, because the case is misleading.
@@ -62,7 +86,7 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
   - Nothing is vendored: `newIPTVrepo/` is gitignored like the existing Free-TV snapshot. The
     catalogue records URLs only, and playlists are always fetched live.
   - Covered by tests for source tagging, combined-entry ordering, cross-source search and the
-    picker's source filter. **Suite is now 226 passing, 2 xfailed.**
+    picker's source filter. **Suite is now 244 passing, 2 xfailed.**
 - **Xtream API providers.** `xtream.py` (937 lines, byte-identical to upstream) was copied across in
   Phase 1 and imported by nothing; the app refused Xtream providers outright. It is now wired up:
   live channels, movies, series and categories all load, and a series' seasons and episodes are
