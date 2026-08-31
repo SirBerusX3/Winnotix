@@ -269,6 +269,13 @@ class ChannelsPage(QWidget):
         info_layout.addWidget(self.favorite_button)
         self.info_bar = info_bar
 
+        # A failed stream leaves a black video area and nothing else, so the
+        # reason is shown over it rather than only in the status bar.
+        self.message_label = QLabel("")
+        self.message_label.setObjectName("PlayerMessage")
+        self.message_label.setWordWrap(True)
+        self.message_label.hide()
+
         self.video = VideoWidget()
 
         player = QWidget()
@@ -276,6 +283,7 @@ class ChannelsPage(QWidget):
         player_layout.setContentsMargins(0, 0, 0, 0)
         player_layout.setSpacing(0)
         player_layout.addWidget(info_bar)
+        player_layout.addWidget(self.message_label)
         player_layout.addWidget(self.video, 1)
 
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -305,6 +313,14 @@ class ChannelsPage(QWidget):
             icons.icon("star" if is_favorite else "star_outline", self._palette.icon)
         )
         self.favorite_button.blockSignals(False)
+
+    def show_message(self, text: str) -> None:
+        self.message_label.setText(text)
+        self.message_label.setVisible(bool(text))
+
+    def clear_message(self) -> None:
+        self.message_label.clear()
+        self.message_label.hide()
 
     def set_channel(self, channel) -> None:
         self.name_label.setText(channel.name or "")
@@ -372,6 +388,12 @@ class VodPage(FlowPage):
                 pass  # tile was cleared while the download was in flight
 
 
+def _number_key(value):
+    """Sort '2' before '10' -- season and episode keys are numeric strings."""
+    text = str(value).strip()
+    return (0, int(text), "") if text.isdigit() else (1, 0, text.lower())
+
+
 class EpisodesPage(QScrollArea):
     """Seasons, each with its episodes, for one series."""
 
@@ -395,17 +417,27 @@ class EpisodesPage(QScrollArea):
                 widget.setParent(None)
                 widget.deleteLater()
 
-        for season_name in sorted(serie.seasons):
+        for season_name in sorted(serie.seasons, key=_number_key):
             season = serie.seasons[season_name]
-            heading = QLabel(f"Season {season_name}")
+            # Upstream labels every season "Season %s" % key (hypnotix.py:597).
+            # That reads right for the M3U path, whose keys are numbers, but an
+            # Xtream panel names its own seasons -- and some of those names are
+            # not numbers at all ("Specials"), so a name is used when there is one.
+            label = str(getattr(season, "name", "") or season_name)
+            heading = QLabel(f"Season {label}" if label.isdigit() else label)
             heading.setProperty("season", "true")
             self._layout.addWidget(heading)
 
             row_host = QWidget()
             flow = FlowPage(margin=0, spacing=8)
-            for episode_name in sorted(season.episodes):
+            for episode_name in sorted(season.episodes, key=_number_key):
                 episode = season.episodes[episode_name]
                 tile = Tile(f"Episode {episode_name}")
+                # Upstream's tooltip is the dict key, which for it was the
+                # episode's title. Ours is the number, so show the real title.
+                title = str(getattr(episode, "title", "") or "").strip()
+                if title:
+                    tile.setToolTip(title)
                 tile.clicked.connect(
                     lambda _checked=False, e=episode: self.episode_clicked.emit(e)
                 )
@@ -854,6 +886,18 @@ class PreferencesPage(QScrollArea):
         hide_hint.setProperty("dim", "true")
         hide_hint.setWordWrap(True)
 
+        self.hide_adult_check = QCheckBox("Hide adult channels (Xtream providers)")
+        self.hide_adult_check.setChecked(settings.get_boolean("hide-adult-content"))
+        self.hide_adult_check.toggled.connect(
+            lambda checked: self.bool_setting_changed.emit("hide-adult-content", checked)
+        )
+        adult_hint = QLabel(
+            "Applies to live channels an Xtream provider marks as adult. M3U "
+            "playlists carry no such marking, so this does nothing for them."
+        )
+        adult_hint.setProperty("dim", "true")
+        adult_hint.setWordWrap(True)
+
         heading = QLabel("yt-dlp")
         heading.setProperty("heading", "true")
         self.ytdlp_version_label = QLabel("Checking…")
@@ -872,6 +916,9 @@ class PreferencesPage(QScrollArea):
         layout.addWidget(playlist_heading)
         layout.addWidget(self.hide_unplayable_check)
         layout.addWidget(hide_hint)
+        layout.addSpacing(6)
+        layout.addWidget(self.hide_adult_check)
+        layout.addWidget(adult_hint)
         layout.addSpacing(10)
         layout.addWidget(separator())
         layout.addWidget(heading)

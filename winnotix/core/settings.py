@@ -34,11 +34,14 @@ DEFAULTS: dict[str, Any] = {
     "use-local-ytdlp": False,
     # Not part of upstream's schema -- see WINNOTIX_KEYS below.
     "hide-unplayable": True,
+    # pyxtream supports this; upstream hardcodes it False at its one call
+    # site (hypnotix.py:1543) and never exposes it. Default matches upstream.
+    "hide-adult-content": False,
 }
 
 # Keys upstream's org.x.hypnotix schema does not have. Kept separate so the
 # tests can still assert we have not drifted from upstream on the shared ones.
-WINNOTIX_KEYS = {"hide-unplayable"}
+WINNOTIX_KEYS = {"hide-unplayable", "hide-adult-content"}
 UPSTREAM_KEYS = set(DEFAULTS) - WINNOTIX_KEYS
 
 

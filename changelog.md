@@ -14,6 +14,77 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
 
 ### Added
 
+- **Xtream API providers.** `xtream.py` (937 lines, byte-identical to upstream) was copied across in
+  Phase 1 and imported by nothing; the app refused Xtream providers outright. It is now wired up:
+  live channels, movies, series and categories all load, and a series' seasons and episodes are
+  fetched on first open, on a worker thread rather than upstream's blocking call behind a wait
+  cursor.
+  - The integration lives in `winnotix/core/xtream_loader.py`, not in `xtream.py`, so the latter
+    stays byte-comparable with upstream. That file's header documents each deviation.
+  - **`XTream.load_iptv()` is not used.** Its request methods, its JSON disk cache and its 8-hour
+    freshness threshold, and all five model classes are upstream's and used as-is — but the grouping
+    is ours, because Xtream namespaces category ids *per stream type* while `load_iptv` resolves
+    them against one flat list of all three. Live category 3 and VOD category 3 are unrelated, so
+    upstream files movies under whichever TV category sorted first.
+  - **Six upstream defects had to be handled** for Xtream to work at all. Four are pinned by tests
+    in `tests/test_xtream.py` that name the defect they cover:
+    1. `XTream` keeps `state`, `auth_data`, `groups`, `channels`, `movies`, `series` and
+       `catch_all_group` on the **class**, never rebinding them in `__init__`. A second Xtream
+       provider therefore finds `state["authenticated"]` already true, skips authentication, reads
+       the never-reassigned class-level `auth_data` — `{}` — and reports a failure it never
+       attempted. `XtreamSession` gives each session its own.
+    2. `authenticate()` counts any HTTP 200 carrying a `user_info` object as success. Panels answer
+       wrong credentials, expired subscriptions and bans with exactly that shape, so a dead account
+       looks connected and then quietly loads nothing.
+    3. The per-stream-type category collision above.
+    4. `get_series_info_by_id()` nests its episode loop inside its season loop, giving **every
+       season a copy of every episode** in the series; and its `Episode` reads `cover` off the
+       *season* dict handed to it as `series_info`, losing the series to a `KeyError` when a season
+       omits it. Our replacement also drives off the `episodes` map rather than `seasons`, because
+       panels routinely return `"seasons": []` alongside a full episode list — upstream shows
+       nothing at all for those.
+    5. `Channel` normalises the odd `created_live` / `radio_streams` stream types for its type check
+       but then builds the URL from the raw value, producing `…/created_live/user/pass/1.ts`.
+    6. `authenticate()` calls `r.json()` and indexes `user_info["username"]` unguarded, so an HTML
+       error page or the `{"user_info": {"auth": 0}}` most panels answer a bad password with raises
+       `ValueError`/`KeyError` straight out of the constructor rather than leaving `auth_data` empty
+       for the caller's check.
+  - **Failures say what went wrong.** Upstream's entire error path is
+    `print("XTREAM Authentication Failed")`, which covers a typo'd URL, a refused connection, an
+    expired subscription and a panel that is not Xtream at all. Each now gets its own status-bar
+    message, including the common mistake of entering the URL with `/player_api.php` or `/c` on the
+    end. On success the status bar reports the account's expiry and connection count.
+  - Categories an Xtream panel advertises but has no streams for are dropped rather than listed as
+    "Name (0)", matching what the blocklist already does. The catch-all group is called
+    *Uncategorised* rather than upstream's `xEverythingElse` — the leading `x` was there to sort it
+    last, and we sort explicitly.
+  - New setting `hide-adult-content` (default off, matching upstream) with a Preferences toggle.
+    pyxtream has always supported it; upstream hardcodes it `False` at its one call site
+    (`hypnotix.py:1543`) and never exposes it. It only affects Xtream live channels — M3U playlists
+    carry no such marking.
+  - **Xtream tests** (`tests/test_xtream.py`, 33 tests) run against a fake panel that answers
+    `player_api.php` the way a real one does — including reused category ids and a season-keyed
+    episode map — so the whole path is covered with no network and no credentials.
+  - Verified end to end through a real `MainWindow` against that fake panel: provider loads, session
+    is cached, episodes are fetched on a worker thread and delivered back to the GUI thread, seasons
+    partition correctly. **Not yet verified against a live Xtream account** — that needs
+    credentials we do not have.
+- **Playback failures are visible, and explained** (`winnotix/core/streamcheck.py`). Upstream never
+  notices a failed open: mpv logs `Failed to open …` and the GUI carries on showing the channel as
+  though it were playing. Winnotix now listens for mpv's `end-file` error, shows a banner over the
+  video area and a status-bar line, and then makes **one** request to the URL — on the failure path
+  only — to say what actually came back.
+  - Distinguishes a 404, a 403 (flagged as the geo-block it usually is), an unreachable host, a
+    login or captive-portal page, a valid manifest whose segments are gone, and a server that
+    answers HTTP 200 with an entire second HTTP response as the body.
+  - That last case is not hypothetical — it is the ITV 1 entry in the Free-TV UK playlist, and it
+    produces mpv errors that look like a corrupted playlist. See *Investigated* below.
+  - **Tests** (`tests/test_streamcheck.py`) classify each case from a captured response, including
+    the verbatim one that host returns, with no network. **Suite is now 208 passing, 2 xfailed.**
+- **Reload Provider (Ctrl+R).** Upstream has no manual reload — it re-downloads on a timer, every
+  5 minutes for M3U and every 2 hours for Xtream (`hypnotix.py:150,1564`). Reloading a large playlist
+  unprompted is exactly the stall lazy logo loading was added to avoid, so this is on demand instead.
+  It also gives Xtream's eight-hour listing cache a way to be busted without editing the provider.
 - **Country flags on category tiles.** Upstream gets these from `circle-flags-svg`, a Debian package
   with no Windows equivalent, so they have never worked here. 265 ISO-country SVGs are now bundled
   from [HatScripts/circle-flags](https://github.com/HatScripts/circle-flags) (MIT), covering all 86
@@ -87,6 +158,11 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
 
 ### Changed
 
+- **Seasons sort numerically and keep their own names.** The episodes page sorted season and episode
+  keys as strings, putting season 10 before season 2, and labelled every season `Season %s` from its
+  key as upstream does. That reads correctly for M3U playlists, whose keys are numbers, but an
+  Xtream panel names its own seasons and some of those are not numbers at all ("Specials"). Episode
+  tiles now carry the episode title as their tooltip.
 - **Channel logos load lazily.** Upstream issues one HTTP request per channel the moment a list is
   shown (`hypnotix.py:534-543`), so a 1,869-channel playlist fires 1,869 requests for the ~15 rows
   actually on screen — the reason large providers stall on Linux. Winnotix requests only what is
@@ -184,6 +260,24 @@ a deliberate decision rather than passing silently.
 
 ### Investigated, no change needed
 
+- **The HTML in mpv's "Failed to open" error is not in the playlist, and ITV 1 is simply dead.**
+  Playing ITV 1 produced
+  `Failed to open http://45.14.84.37/itv1/<ADDRESS><A HREF="http://www.acme.com/software/micro_httpd/">micro_httpd</A></ADDRESS>`,
+  which reads as though the playlist author had glued HTML onto the URL. It had not: the entry is
+  plain `http://45.14.84.37/itv1/index.m3u8`, verified in both the combined and UK playlists.
+  - That host answers **HTTP 200** with `Content-Type: application/octet-stream` whose *body* is a
+    complete second HTTP response — a micro_httpd `404 Not Found` page, status line and headers
+    included. (The host is not an IPTV server at all: `/itv1/` serves a "Redirect To Login Page"
+    from some embedded device.)
+  - mpv treats any `.m3u8` URL as a playlist even with no `#EXTM3U` header, so it parsed that error
+    page as one, took its last non-comment line — `<ADDRESS>…micro_httpd…</ADDRESS>` — as a relative
+    entry, and resolved it against `http://45.14.84.37/itv1/`. Hence the HTML in the URL.
+  - **So sanitising the URL would fix nothing** — there is no stream at that address, and the same
+    four entries (ITV 1–4) all point at the same dead host. Not blocklisted either: the blocklist is
+    for streams that resolve *and play filler*, which cannot be detected automatically, whereas this
+    can be, and public playlists rot too fast to enumerate by hand. The fix is the failure reporting
+    added above, which now says *"The server answered 200 Ok, but the body is another HTTP response
+    — 'HTTP/1.1 404 Not Found'. There is no stream at that address."*
 - **The M3U playlists are not stale.** The default provider URL is a live pointer to
   `Free-TV/IPTV@master`, which the repo's own README still names as the URL to use, and it updates
   weekly. A fetch on 2026-08-31 was byte-identical to a checkout of the repo (modulo line endings),

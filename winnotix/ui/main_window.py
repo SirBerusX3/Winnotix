@@ -39,6 +39,7 @@ from ..core.common import (
     idle_function,
 )
 from ..core.settings import DEFAULTS, SettingsShim
+from ..core import paths, streamcheck, xtream_loader
 from . import pages as P
 from .logos import LogoCache
 from .theme import current_palette, stylesheet
@@ -47,6 +48,9 @@ from .widgets import HeaderBar, StatusBar
 mpv = mpvloader.load_mpv()
 
 APP_NAME = "Winnotix"
+
+# MpvEventEndFile.ERROR -- mpv gave up opening or decoding the file.
+END_FILE_ERROR = 4
 
 LANDING = "landing_page"
 CATEGORIES = "categories_page"
@@ -65,6 +69,9 @@ SPINNER = "spinner_page"
 
 class MainWindow(QMainWindow):
     provider_loaded = Signal(object, bool, str, object)
+    series_loaded = Signal(object, bool, str)
+    playback_failed = Signal(object, str)
+    stream_diagnosed = Signal(object, str)
 
     def __init__(self) -> None:
         super().__init__()
@@ -92,6 +99,10 @@ class MainWindow(QMainWindow):
         self.edit_provider: Provider | None = None
         self.pending_delete: Provider | None = None
         self.page_is_loading = False
+        # One authenticated Xtream session per provider name, kept because a
+        # series' episodes are fetched lazily, long after the provider loaded.
+        self.xtream_sessions: dict[str, xtream_loader.XtreamSession] = {}
+        self.pending_serie = None
         self.mpv = None
         self.volume = 100
         self._is_fullscreen = False
@@ -200,6 +211,8 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.status)
         self.setCentralWidget(central)
 
+        self.reload_action = self.header.add_menu_action(
+            "Reload Provider", "refresh", "Ctrl+R", self.reload_provider)
         self.header.add_menu_action("Keyboard Shortcuts", "keyboard", "Ctrl+K",
                                     self.open_keyboard_shortcuts)
         self.info_action = self.header.add_menu_action("Stream Information", "info",
@@ -210,6 +223,9 @@ class MainWindow(QMainWindow):
         self.header.add_menu_action("Quit", "exit", "Ctrl+Q", self.close)
 
         self.provider_loaded.connect(self._on_provider_loaded)
+        self.series_loaded.connect(self._on_series_loaded)
+        self.playback_failed.connect(self._on_playback_failed)
+        self.stream_diagnosed.connect(self._on_stream_diagnosed)
 
     def _add_page(self, name: str, widget: QWidget) -> None:
         self.pages[name] = widget
@@ -346,6 +362,19 @@ class MainWindow(QMainWindow):
             return
         self.load_provider(chosen)
 
+    def reload_provider(self) -> None:
+        """Re-fetch the active provider, bypassing its cache.
+
+        Upstream has no manual reload -- it re-downloads on a timer instead,
+        every 5 minutes for M3U and every 2 hours for Xtream (hypnotix.py:150,
+        1564). Reloading a large playlist unprompted is exactly the stall that
+        the lazy logo loading was introduced to avoid, so this is on demand.
+        """
+        if self.active_provider is None:
+            self.status.set_status("No provider to reload.")
+            return
+        self.load_provider(self.active_provider, refresh=True)
+
     def load_provider(self, provider: Provider, refresh: bool = False) -> None:
         self.active_provider = provider
         self.active_group = None
@@ -360,11 +389,7 @@ class MainWindow(QMainWindow):
         """Worker thread: download and parse. Must not touch widgets."""
         try:
             if provider.type_id == P.PROVIDER_TYPE_XTREAM:
-                self.provider_loaded.emit(
-                    provider, False,
-                    "Xtream providers are not supported yet — coming in a later release.",
-                    FilterResult(),
-                )
+                self._fetch_xtream(provider, refresh)
                 return
             if not self.manager.get_playlist(provider, refresh=refresh):
                 self.provider_loaded.emit(provider, False,
@@ -389,6 +414,33 @@ class MainWindow(QMainWindow):
             return
         self.provider_loaded.emit(provider, True, "", filtered)
 
+    def _fetch_xtream(self, provider: Provider, refresh: bool) -> None:
+        """Worker thread: authenticate and load an Xtream provider.
+
+        Upstream does this inline in its reload loop with a wait cursor
+        (hypnotix.py:1533-1573), which blocks the GUI for the whole load; the
+        awkward parts of that integration live in core/xtream_loader.py.
+        """
+        try:
+            session = xtream_loader.connect(
+                provider,
+                user_agent=self.settings.get_string("user-agent"),
+                cache_path=str(paths.PROVIDERS_PATH),
+                hide_adult_content=self.settings.get_boolean("hide-adult-content"),
+            )
+            result = xtream_loader.load(provider, session, refresh=refresh)
+        except xtream_loader.XtreamError as exc:
+            self.provider_loaded.emit(provider, False, str(exc), FilterResult())
+            return
+
+        self.xtream_sessions[provider.name] = session
+        filtered = FilterResult()
+        if self.settings.get_boolean("hide-unplayable"):
+            filtered = self.blocklist.apply(provider)
+
+        note = " — ".join(part for part in (result.account, result.summary()) if part)
+        self.provider_loaded.emit(provider, True, note, filtered)
+
     def _on_provider_loaded(self, provider: Provider, ok: bool, message: str,
                             filtered: FilterResult) -> None:
         if provider is not self.active_provider:
@@ -405,6 +457,8 @@ class MainWindow(QMainWindow):
         )
         if filtered.removed:
             summary += f" — {filtered.summary()}"
+        if message:
+            summary += f" — {message}"
         self.status.set_status(summary)
 
     def show_providers(self) -> None:
@@ -464,6 +518,9 @@ class MainWindow(QMainWindow):
 
         if self.edit_provider is not None:
             index = self.providers.index(self.edit_provider)
+            # Credentials or the server may have changed, so the authenticated
+            # session cached under the old name is no longer trustworthy.
+            self.xtream_sessions.pop(self.edit_provider.name, None)
             self.providers[index] = new_provider
         else:
             self.providers.append(new_provider)
@@ -474,6 +531,7 @@ class MainWindow(QMainWindow):
     def on_delete_confirmed(self) -> None:
         if self.pending_delete is not None and self.pending_delete in self.providers:
             self.providers.remove(self.pending_delete)
+            self.xtream_sessions.pop(self.pending_delete.name, None)
             self._save_providers()
             if self.active_provider is self.pending_delete:
                 self.active_provider = None
@@ -481,6 +539,7 @@ class MainWindow(QMainWindow):
         self.show_providers()
 
     def on_reset_confirmed(self) -> None:
+        self.xtream_sessions.clear()
         self.settings.reset("providers")
         self._load_providers_from_settings()
         self.show_providers()
@@ -525,12 +584,56 @@ class MainWindow(QMainWindow):
         self.status.set_status(f"{self.channels.channel_list.count()} channels")
 
     def on_vod_item_clicked(self, item) -> None:
-        if self.content_type == SERIES_GROUP:
-            self.active_serie = item
-            self.episodes.show_serie(item)
-            self.navigate_to(EPISODES)
-        else:
+        if self.content_type != SERIES_GROUP:
             self.on_channel_activated(item)
+            return
+        self.active_serie = item
+        session = self._active_xtream_session()
+        if session is not None and not item.seasons:
+            # Xtream does not ship seasons and episodes with the series list;
+            # they are a separate request per series, so fetch on first open.
+            # Upstream does it synchronously behind a wait cursor
+            # (hypnotix.py:588) -- off the GUI thread here.
+            self.pending_serie = item
+            self.spinner.set_message(f"Loading {item.name}…", "Fetching seasons and episodes.")
+            self.navigate_to(SPINNER)
+            self._fetch_series(session, item)
+            return
+        self.episodes.show_serie(item)
+        self.navigate_to(EPISODES)
+
+    def _active_xtream_session(self):
+        provider = self.active_provider
+        if provider is None or provider.type_id != P.PROVIDER_TYPE_XTREAM:
+            return None
+        return self.xtream_sessions.get(provider.name)
+
+    @async_function
+    def _fetch_series(self, session, serie) -> None:
+        """Worker thread: one get_series_info request. Must not touch widgets."""
+        try:
+            xtream_loader.load_series(session, serie)
+        except xtream_loader.XtreamError as exc:
+            self.series_loaded.emit(serie, False, str(exc))
+            return
+        except Exception as exc:  # a malformed payload should not kill the thread
+            self.series_loaded.emit(serie, False, f"Could not read this series: {exc}")
+            return
+        self.series_loaded.emit(serie, True, "")
+
+    def _on_series_loaded(self, serie, ok: bool, message: str) -> None:
+        if serie is not self.pending_serie:
+            return  # the user moved on while it loaded
+        self.pending_serie = None
+        if not ok:
+            self.navigate_to(VOD)
+            self.status.set_status(f"{serie.name}: {message}")
+            return
+        self.episodes.show_serie(serie)
+        self.navigate_to(EPISODES)
+        self.status.set_status(
+            f"{serie.name}: {len(serie.episodes)} episodes in {len(serie.seasons)} seasons"
+        )
 
     def show_favorites(self) -> None:
         self.content_type = TV_GROUP
@@ -623,6 +726,7 @@ class MainWindow(QMainWindow):
         )
         self.mpv.volume = self.volume
         self.mpv.observe_property("core-idle", self._on_core_idle)
+        self.mpv.register_event_callback(self._on_mpv_event)
 
     @staticmethod
     def _on_mpv_log(level: str, prefix: str, text: str) -> None:
@@ -630,6 +734,45 @@ class MainWindow(QMainWindow):
 
     def _on_core_idle(self, _name, _value) -> None:
         pass  # observed so mpv keeps the property live for the info dialog
+
+    def _on_mpv_event(self, event) -> None:
+        """mpv's event thread. Emits a signal; must not touch widgets.
+
+        Upstream never notices a failed open at all -- mpv logs "Failed to open"
+        and the GUI keeps showing the channel as though it were playing. Public
+        playlists are full of dead entries, so the failure has to be visible.
+        """
+        try:
+            data = event.data
+            if data is None or getattr(data, "reason", None) != END_FILE_ERROR:
+                return
+            reason = mpv.ErrorCode.human_readable(data.error)
+        except Exception:
+            return
+        self.playback_failed.emit(self.active_channel, reason)
+
+    def _on_playback_failed(self, channel, reason: str) -> None:
+        if channel is None or channel is not self.active_channel:
+            return  # a stale failure from a channel we have already left
+        self.status.set_status(f"Could not play {channel.name}: {reason}")
+        self.channels.show_message(f"{channel.name} would not play — {reason}. Checking why…")
+        self._diagnose_stream(channel)
+
+    @async_function
+    def _diagnose_stream(self, channel) -> None:
+        """Worker thread: ask the URL itself what went wrong. One request."""
+        detail = streamcheck.diagnose(
+            channel.url,
+            user_agent=self.settings.get_string("user-agent"),
+            referer=self.settings.get_string("http-referer"),
+        )
+        self.stream_diagnosed.emit(channel, detail)
+
+    def _on_stream_diagnosed(self, channel, detail: str) -> None:
+        if channel is not self.active_channel or not detail:
+            return
+        self.status.set_status(f"{channel.name}: {detail}")
+        self.channels.show_message(f"{channel.name} would not play. {detail}")
 
     def on_channel_activated(self, channel) -> None:
         if channel is None or not channel.url or self.mpv is None:
@@ -645,11 +788,13 @@ class MainWindow(QMainWindow):
             self.navigate_to(CHANNELS)
 
         self.info_action.setEnabled(True)
+        self.channels.clear_message()
         self.status.set_status(f"Playing {channel.name}")
         try:
             self.mpv.play(channel.url)
         except Exception as exc:
             self.status.set_status(f"Could not play {channel.name}: {exc}")
+            self.channels.show_message(f"{channel.name} would not play — {exc}")
 
     def toggle_pause(self) -> None:
         if self.mpv is None or self.active_channel is None:
@@ -715,6 +860,13 @@ class MainWindow(QMainWindow):
 
     def _on_bool_setting_changed(self, key: str, value: bool) -> None:
         self.settings.set_boolean(key, value)
+        if key == "hide-adult-content" and self.active_provider is not None:
+            # Only Xtream marks adult streams, and the marking is applied while
+            # loading, so this is a no-op for anything else.
+            if self.active_provider.type_id == P.PROVIDER_TYPE_XTREAM:
+                self.status.set_status("Reloading the provider to apply the change…")
+                self.load_provider(self.active_provider)
+            return
         if key == "hide-unplayable" and self.active_provider is not None:
             # Filtering happens during load, so the change needs a reload to
             # take effect -- and a reload is cheap, the playlist is cached.
@@ -746,6 +898,7 @@ class MainWindow(QMainWindow):
             ("Space", "Pause / resume"),
             ("F1", "About"),
             ("F2", "Stream information"),
+            ("Ctrl+R", "Reload the current provider"),
             ("Ctrl+K", "This dialog"),
             ("Ctrl+Q", "Quit"),
         ]

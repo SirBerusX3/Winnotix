@@ -180,6 +180,12 @@ QListWidget#Sidebar::item:selected {{
 }}
 #ChannelTitle {{ font-size: 12pt; font-weight: 600; }}
 #ChannelUrl   {{ color: {p.text_dim}; font-size: 8pt; }}
+#PlayerMessage {{
+    background-color: {p.surface};
+    border-bottom: 1px solid {p.border};
+    color: {p.danger};
+    padding: 8px 12px;
+}}
 
 /* ---- forms ------------------------------------------------------- */
 QLineEdit, QComboBox {{

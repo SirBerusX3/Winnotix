@@ -3,10 +3,11 @@
 An IPTV player for Windows — a port of [Hypnotix](https://github.com/linuxmint/hypnotix), the Linux
 Mint IPTV app, rebuilt on PySide6 with libmpv for playback.
 
-**Status: early. Phase 0 complete** — libmpv renders live IPTV inside a PySide6 window with
-hardware decoding, and the upstream playlist/provider backend runs unmodified on Windows. There is
-not yet a real UI. See [roadmap.md](roadmap.md) for the plan and [changelog.md](changelog.md) for
-what has actually been done.
+**Status: Phase 2 complete, Phase 3 well under way.** libmpv renders live IPTV inside a PySide6
+window with hardware decoding, the upstream playlist/provider backend runs on Windows, and the UI is
+rebuilt: categories, channels, VOD, series, favourites, search, provider management and both M3U and
+Xtream providers. Still to come: yt-dlp bootstrapping and packaging. See [roadmap.md](roadmap.md) for the plan and [changelog.md](changelog.md) for what has
+actually been done.
 
 ## Why
 
@@ -58,8 +59,10 @@ git submodule update --init
 | `resources/flags/` | Country flags from [circle-flags](https://github.com/HatScripts/circle-flags) (MIT) |
 | `tools/` | Maintenance scripts (playlist catalogue generation) |
 
-`winnotix/core/xtream.py` is byte-identical to upstream. `winnotix/core/common.py` differs from
-upstream in five places, all documented in its header.
+`winnotix/core/xtream.py` is byte-identical to upstream, so everything Xtream needs beyond it lives
+in `winnotix/core/xtream_loader.py` — including the six upstream defects that had to be worked
+around, each documented in that file's header. `winnotix/core/common.py` differs from upstream in
+five places, all documented in its header.
 
 ## Playlists
 
@@ -75,6 +78,32 @@ The index is generated, not hand-maintained — re-run it when the repo adds cou
 ```powershell
 python tools/generate_catalogue.py --fetch
 ```
+
+## Xtream providers
+
+**Providers → Add** and pick *Xtream API*. The server URL is the panel root — `http://host:8080` —
+with no `/player_api.php` or `/c` on the end; entering one of those is the usual cause of a provider
+that will not connect, and Winnotix says so rather than reporting a generic authentication failure.
+
+Live channels, movies and series load together; a series' seasons and episodes are a separate
+request per series, so they are fetched the first time you open one. Listings are cached on disk for
+eight hours — the header menu's refresh re-fetches them.
+
+Provider entries use Hypnotix's own `:::` format, so an existing Linux provider list can be pasted
+straight across.
+
+## When a channel will not play
+
+Public playlists rot, so this is normal rather than exceptional. Winnotix shows a banner over the
+video area and asks the URL itself what went wrong: a 404, a 403 (usually a geo-block), an
+unreachable host, a login page, or a playlist that loads while its video segments do not.
+
+One case is worth knowing about because its mpv error is actively misleading. Some dead hosts answer
+HTTP 200 with a whole HTTP error page as the body; mpv treats any `.m3u8` URL as a playlist even
+without an `#EXTM3U` header, parses that page as one, and tries to open a "segment" whose name is a
+line of HTML — producing errors like
+`Failed to open http://host/itv1/<ADDRESS><A HREF="...">micro_httpd</A></ADDRESS>`. The playlist is
+not corrupt and the URL is not malformed; the host simply has no stream on it.
 
 ## Unplayable streams
 

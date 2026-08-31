@@ -1,6 +1,9 @@
 # Winnotix — Hypnotix Windows Port Roadmap
 
-> **Status:** planning complete, no code written yet.
+> **Status:** Phases 0–2 complete; Phase 3 well under way. This document is the *plan* and is kept
+> as written except where the work proved it wrong — [changelog.md](changelog.md) is the record of
+> what has actually been done. Remaining in Phase 3: yt-dlp bootstrapping and the three inherited
+> upstream parsing defects in §5.
 > **Revision 2** — rewritten after auditing the actual upstream source. Revision 1 over-estimated
 > the difficulty of MPV embedding and settings, and missed several real Linux dependencies.
 > See [Appendix A](#appendix-a--what-changed-from-revision-1) for what changed and why.
@@ -223,6 +226,21 @@ Restore in descending order of value-per-unit-effort:
 8. **Logos & country flags** — see the `circle-flags-svg` dependency in §7
 9. **Dark mode** — drop `XApp` entirely; use `QGuiApplication.styleHints().colorScheme()`
 10. **i18n** — repoint `bindtextdomain` at a bundled locale dir; the 60+ existing `.po` files work as-is
+
+**Done:** 1–9, plus visible playback-error feedback — pencilled in for Phase 5 polish, pulled
+forward because public playlists rot fast enough that a silent failure is a parity gap, not polish.
+**Still open:** 10, plus the yt-dlp bootstrap (§7 #2). Two corrections the work forced:
+
+- **Item 5 badly under-read the Xtream half.** "`xtream.py` already supplies the data" is true of the
+  HTTP layer and the model classes, and false of everything joining them to a Provider. Upstream's
+  own integration is six lines of glue carrying six defects — shared class-level state across
+  providers, an authentication check that accepts rejected accounts, category ids resolved across
+  stream-type namespaces that reuse them, an episode loop nested inside its season loop, a URL built
+  from an un-normalised stream type, and a constructor that raises on a rejection payload. See the
+  header of `winnotix/core/xtream_loader.py`. `xtream.py` itself stays byte-identical.
+- **Item 10 is probably not worth doing.** The `.po` files key off upstream's Glade msgids; our UI
+  strings are hand-written Qt and mostly will not match, so the catalogue is not the free win this
+  list assumed. Recommend dropping it rather than half-translating the app.
 
 ### Known upstream defects (found by the Phase 1 test suite)
 

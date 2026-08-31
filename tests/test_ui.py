@@ -202,3 +202,109 @@ def test_flow_layout_count_and_takeat(qapp):
     assert layout.count() == 2
     assert layout.itemAt(99) is None
     assert layout.takeAt(99) is None
+
+
+# --------------------------------------------------------------------------
+# Episodes page
+# --------------------------------------------------------------------------
+
+class _Season:
+    def __init__(self, name, episodes):
+        self.name = name
+        self.episodes = episodes
+
+
+class _Episode:
+    def __init__(self, title):
+        self.title = title
+        self.name = title
+        self.logo_path = None
+
+
+class _Serie:
+    def __init__(self, seasons):
+        self.name = "A Show"
+        self.seasons = seasons
+        self.episodes = []
+
+
+def _headings(page):
+    from PySide6.QtWidgets import QLabel
+    return [w.text() for w in page.widget().findChildren(QLabel)
+            if w.property("season")]
+
+
+def test_episode_seasons_sort_numerically(qapp):
+    """Season 10 comes after season 2, which plain string sorting gets wrong."""
+    from winnotix.ui.pages import EpisodesPage
+
+    page = EpisodesPage()
+    page.show_serie(_Serie({
+        "2": _Season("2", {"1": _Episode("Two-One")}),
+        "10": _Season("10", {"1": _Episode("Ten-One")}),
+        "1": _Season("1", {"1": _Episode("One-One")}),
+    }))
+    assert _headings(page) == ["Season 1", "Season 2", "Season 10"]
+    page.deleteLater()
+
+
+def test_a_named_season_keeps_its_name(qapp):
+    """M3U seasons are bare numbers and get upstream's "Season %s" label; an
+    Xtream panel names its own, and some of those are not numbers at all."""
+    from winnotix.ui.pages import EpisodesPage
+
+    page = EpisodesPage()
+    page.show_serie(_Serie({
+        "1": _Season("Season 1", {"1": _Episode("Pilot")}),
+        "0": _Season("Specials", {"1": _Episode("Behind the scenes")}),
+    }))
+    assert _headings(page) == ["Specials", "Season 1"]
+    page.deleteLater()
+
+
+def test_episode_tiles_show_the_title_as_a_tooltip(qapp):
+    from winnotix.ui.pages import EpisodesPage
+    from winnotix.ui.widgets import Tile
+
+    page = EpisodesPage()
+    page.show_serie(_Serie({"1": _Season("1", {"3": _Episode("The Finale")})}))
+    tiles = page.widget().findChildren(Tile)
+    assert [t.text() for t in tiles] == ["Episode 3"]
+    assert tiles[0].toolTip() == "The Finale"
+    page.deleteLater()
+
+
+# --------------------------------------------------------------------------
+# Playback failure banner
+# --------------------------------------------------------------------------
+
+@pytest.fixture
+def channels_page(qapp):
+    from winnotix.ui.logos import LogoCache
+    from winnotix.ui.pages import ChannelsPage
+    from winnotix.ui.theme import current_palette
+    from tests.conftest import FakeSettings
+
+    cache = LogoCache(FakeSettings())
+    page = ChannelsPage(current_palette(), cache)
+    yield page
+    cache.shutdown()
+    page.deleteLater()
+
+
+def test_the_player_message_is_hidden_until_something_fails(channels_page):
+    assert channels_page.message_label.isHidden()
+
+    channels_page.show_message("ITV 1 would not play.")
+    assert not channels_page.message_label.isHidden()
+    assert channels_page.message_label.text() == "ITV 1 would not play."
+
+    channels_page.clear_message()
+    assert channels_page.message_label.isHidden()
+    assert channels_page.message_label.text() == ""
+
+
+def test_an_empty_message_hides_the_banner(channels_page):
+    channels_page.show_message("something")
+    channels_page.show_message("")
+    assert channels_page.message_label.isHidden()
