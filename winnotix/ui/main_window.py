@@ -10,9 +10,6 @@ happened to come from.
 
 from __future__ import annotations
 
-import shutil
-import subprocess
-
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QGuiApplication, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
@@ -26,7 +23,7 @@ from PySide6.QtWidgets import (
     QStackedWidget,
 )
 
-from ..core import mpvloader
+from ..core import mpvloader, ytdlp
 from ..core.filters import Blocklist, FilterResult
 from ..core.common import (
     MOVIES_GROUP,
@@ -87,7 +84,15 @@ class MainWindow(QMainWindow):
 
         self.settings = SettingsShim()
         self.manager = Manager(self.settings)
+        # Before anything constructs mpv: this decides which yt-dlp is on PATH,
+        # and mpv's ytdl_hook resolves the binary by name from there.
+        ytdlp.apply_preference(self.settings.get_boolean("use-local-ytdlp"))
+
         self.logo_cache = LogoCache(self.settings, self)
+        # Versions before the region-block fix cached "not available in your
+        # region" images as though they were logos, and a cached file is never
+        # re-fetched. Clear them once, in the background.
+        self.logo_cache.purge_cached_refusals()
         self.blocklist = Blocklist.load()
 
         # State, mirroring upstream's MainWindow attributes.
@@ -167,6 +172,7 @@ class MainWindow(QMainWindow):
         self.preferences = P.PreferencesPage(self.settings)
         self.preferences.setting_changed.connect(self._on_setting_changed)
         self.preferences.bool_setting_changed.connect(self._on_bool_setting_changed)
+        self.preferences.ytdlp_update_clicked.connect(self.download_ytdlp)
         self._add_page(PREFERENCES, self.preferences)
 
         self.providers_page = P.ProvidersPage(self.palette_)
@@ -725,7 +731,7 @@ class MainWindow(QMainWindow):
             osc=osc,
             input_default_bindings=True,
             input_vo_keyboard=True,
-            ytdl=bool(shutil.which("yt-dlp")),
+            ytdl=self._ytdlp_available(),
             log_handler=self._on_mpv_log,
             loglevel="warn",
         )
@@ -879,27 +885,106 @@ class MainWindow(QMainWindow):
                 self.status.set_status("Reloading the provider to apply the change…")
                 self.load_provider(self.active_provider)
             return
+        if key == "use-local-ytdlp":
+            in_effect = ytdlp.apply_preference(value)
+            if value and not ytdlp.local_path().is_file():
+                self.status.set_status(
+                    "No downloaded copy yet — use Download in Preferences."
+                )
+            elif in_effect is None:
+                self.status.set_status("No yt-dlp found. Streams needing "
+                                       "extraction will not play.")
+            else:
+                self.status.set_status(f"Using {in_effect}.")
+            self._refresh_ytdlp_version()
+            return
+        if key == "proxy-blocked-logos":
+            # Whether a host is reachable has just changed answer, so drop what
+            # was learned under the old setting and let the visible rows ask
+            # again. No reload: logos are fetched independently of the playlist.
+            self.logo_cache.reset_failures()
+            self.status.set_status(
+                "Logos will be fetched through the proxy when a host refuses them."
+                if value else
+                "Logos will only be fetched from the address in the playlist."
+            )
+            return
         if key == "hide-unplayable" and self.active_provider is not None:
             # Filtering happens during load, so the change needs a reload to
             # take effect -- and a reload is cheap, the playlist is cached.
             self.status.set_status("Reloading the playlist to apply the change…")
             self.load_provider(self.active_provider)
 
+    def _ytdlp_available(self) -> bool:
+        return ytdlp.apply_preference(
+            self.settings.get_boolean("use-local-ytdlp")) is not None
+
+    @async_function
     def _refresh_ytdlp_version(self) -> None:
-        path = shutil.which("yt-dlp")
-        if path is None:
-            self.preferences.set_ytdlp_version(
-                "Not installed. Streams needing extraction (e.g. YouTube) will not play."
-            )
-            return
+        """Both copies, off the GUI thread -- each answer is a process launch."""
+        system = ytdlp.version(ytdlp.system_path())
+        local = ytdlp.version(ytdlp.local_path())             if ytdlp.local_path().is_file() else None
+        self._show_ytdlp_versions(system, local)
+
+    @idle_function
+    def _show_ytdlp_versions(self, system, local) -> None:
+        self.preferences.set_ytdlp_versions(system, local)
+
+    @async_function
+    def download_ytdlp(self) -> None:
+        """Fetch yt-dlp into the app's own cache directory.
+
+        Upstream shells out to wget and chmod, and calls os.chdir without
+        changing back -- see core/ytdlp.py. This is the Windows replacement.
+        """
+        self._ytdlp_busy("Downloading…")
         try:
-            version = subprocess.run(
-                [path, "--version"], capture_output=True, text=True, timeout=10,
-                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-            ).stdout.strip()
-            self.preferences.set_ytdlp_version(f"Version {version} ({path})")
+            result = ytdlp.download(on_progress=self._ytdlp_progress)
+        except ytdlp.ChecksumMismatch as exc:
+            self._ytdlp_finished(None, f"Download did not verify: {exc}")
+            return
         except Exception as exc:
-            self.preferences.set_ytdlp_version(f"Found at {path}, but not runnable: {exc}")
+            self._ytdlp_finished(None, f"Could not download yt-dlp: {exc}")
+            return
+        note = "" if result.verified else " (checksum list unavailable, not verified)"
+        self._ytdlp_finished(result.path, f"yt-dlp downloaded{note}.")
+
+    def _ytdlp_progress(self, done: int, total: int) -> None:
+        """Called from the download thread, once per chunk."""
+        if total:
+            self._ytdlp_busy(f"Downloading… {done * 100 // total}%")
+        else:
+            self._ytdlp_busy(f"Downloading… {done / 1e6:.1f} MB")
+
+    @idle_function
+    def _ytdlp_busy(self, message) -> None:
+        self.preferences.set_ytdlp_busy(message)
+
+    @idle_function
+    def _ytdlp_finished(self, path, message) -> None:
+        self.preferences.set_ytdlp_busy(None)
+        if path is not None and self.settings.get_boolean("use-local-ytdlp"):
+            ytdlp.apply_preference(True)
+            message += " " + self._enable_ytdl_now()
+        self.status.set_status(message)
+        self._refresh_ytdlp_version()
+
+    def _enable_ytdl_now(self) -> str:
+        """Turn the hook on in the running player, if mpv will take it live.
+
+        mpv was constructed with `ytdl` off if no yt-dlp existed then. Rather
+        than guess whether the option is settable at run time, set it and read
+        it back.
+        """
+        if self.mpv is None:
+            return ""
+        try:
+            self.mpv.ytdl = True
+            if bool(self.mpv.ytdl):
+                return "It is in use now."
+        except Exception:
+            pass
+        return "It will be used the next time Winnotix starts."
 
     def open_keyboard_shortcuts(self) -> None:
         rows = [

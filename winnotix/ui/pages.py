@@ -924,16 +924,54 @@ class PreferencesPage(QScrollArea):
         adult_hint.setProperty("dim", "true")
         adult_hint.setWordWrap(True)
 
+        logo_heading = QLabel("Channel logos")
+        logo_heading.setProperty("heading", "true")
+
+        self.logo_proxy_check = QCheckBox("Load blocked logos through an image proxy")
+        self.logo_proxy_check.setChecked(settings.get_boolean("proxy-blocked-logos"))
+        self.logo_proxy_check.toggled.connect(
+            lambda checked: self.bool_setting_changed.emit("proxy-blocked-logos", checked)
+        )
+        logo_hint = QLabel(
+            "Most playlists host their logos on imgur, which serves nothing to "
+            "the United Kingdom — 71% of Free-TV's channels and 54% of "
+            "iptv-org's. When a host refuses a logo, Winnotix asks DuckDuckGo's "
+            "image proxy to fetch it instead, which it does from its own servers "
+            "rather than yours. Only the logo address is sent, and only after a "
+            "direct request has already failed. Turn this off to make Winnotix "
+            "talk to nobody but the playlist's own hosts."
+        )
+        logo_hint.setProperty("dim", "true")
+        logo_hint.setWordWrap(True)
+
         heading = QLabel("yt-dlp")
         heading.setProperty("heading", "true")
-        self.ytdlp_version_label = QLabel("Checking…")
-        self.ytdlp_version_label.setProperty("dim", "true")
         ytdlp_hint = QLabel(
             "yt-dlp lets mpv play streams that need extraction, such as YouTube. "
             "Direct HLS and M3U8 streams do not need it."
         )
         ytdlp_hint.setProperty("dim", "true")
         ytdlp_hint.setWordWrap(True)
+
+        self.ytdlp_system_label = QLabel("Checking…")
+        self.ytdlp_system_label.setProperty("dim", "true")
+        self.ytdlp_local_label = QLabel("Checking…")
+        self.ytdlp_local_label.setProperty("dim", "true")
+
+        self.ytdlp_local_check = QCheckBox("Use the copy Winnotix downloads")
+        self.ytdlp_local_check.setChecked(settings.get_boolean("use-local-ytdlp"))
+        self.ytdlp_local_check.toggled.connect(
+            lambda checked: self.bool_setting_changed.emit("use-local-ytdlp", checked)
+        )
+
+        self.ytdlp_button = QPushButton("Download")
+        self.ytdlp_button.clicked.connect(self.ytdlp_update_clicked)
+        button_row = QHBoxLayout()
+        button_row.setContentsMargins(0, 0, 0, 0)
+        button_row.addWidget(self.ytdlp_button)
+        button_row.addStretch(1)
+        self.ytdlp_buttons = QWidget()
+        self.ytdlp_buttons.setLayout(button_row)
 
         layout.addLayout(form)
         layout.addWidget(mpv_hint)
@@ -947,14 +985,41 @@ class PreferencesPage(QScrollArea):
         layout.addWidget(adult_hint)
         layout.addSpacing(10)
         layout.addWidget(separator())
+        layout.addWidget(logo_heading)
+        layout.addWidget(self.logo_proxy_check)
+        layout.addWidget(logo_hint)
+        layout.addSpacing(10)
+        layout.addWidget(separator())
         layout.addWidget(heading)
-        layout.addWidget(self.ytdlp_version_label)
         layout.addWidget(ytdlp_hint)
+        layout.addSpacing(6)
+        layout.addWidget(self.ytdlp_system_label)
+        layout.addWidget(self.ytdlp_local_label)
+        layout.addSpacing(6)
+        layout.addWidget(self.ytdlp_local_check)
+        layout.addWidget(self.ytdlp_buttons)
         layout.addStretch(1)
         self.setWidget(host)
 
-    def set_ytdlp_version(self, text: str) -> None:
-        self.ytdlp_version_label.setText(text)
+    # -- yt-dlp panel --------------------------------------------------
+
+    def set_ytdlp_versions(self, system: str | None, local: str | None) -> None:
+        """Report both copies, and name which button action now makes sense."""
+        self.ytdlp_system_label.setText(
+            f"On your system: {system}" if system else
+            "On your system: not installed"
+        )
+        self.ytdlp_local_label.setText(
+            f"Downloaded by Winnotix: {local}" if local else
+            "Downloaded by Winnotix: none yet"
+        )
+        self.ytdlp_button.setText("Update" if local else "Download")
+
+    def set_ytdlp_busy(self, message: str | None) -> None:
+        """Disable the button while a download runs, and say what is happening."""
+        self.ytdlp_button.setEnabled(message is None)
+        if message is not None:
+            self.ytdlp_local_label.setText(message)
 
 
 class SpinnerPage(QWidget):
