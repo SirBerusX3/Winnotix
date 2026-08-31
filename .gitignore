@@ -5,6 +5,8 @@ vendor/libmpv/*.dll
 build/
 dist/
 *.spec
+# ...except ours, which is hand-written and part of the build.
+!winnotix.spec
 
 # Local snapshots of the upstream playlist repositories, used only to
 # regenerate the catalogues in resources/. The catalogues are committed; the

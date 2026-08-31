@@ -6,6 +6,7 @@ Run with your system Python -- it bootstraps everything else itself:
     python build.py            # set up whatever is missing, then launch
     python build.py setup      # set up only
     python build.py test       # run the test suite
+    python build.py package    # build the portable app into dist/
     python build.py doctor     # report what is and is not ready
     python build.py clean      # remove caches and build artefacts
 
@@ -13,7 +14,9 @@ Setup means: create .venv, install requirements when they have changed, and
 fetch libmpv if it is absent. Each step is skipped when it is already done, so
 `python build.py` on an existing checkout goes straight to launching.
 
-Packaging to a standalone .exe is Phase 4 and deliberately not here yet.
+`package` produces a portable one-folder build in dist/Winnotix -- no installer,
+nothing written outside the folder at build time. See winnotix.spec for what goes
+into it and why.
 """
 
 from __future__ import annotations
@@ -36,6 +39,9 @@ STAMP = VENV / ".winnotix-deps"
 
 REQUIREMENTS = ROOT / "requirements.txt"
 REQUIREMENTS_DEV = ROOT / "requirements-dev.txt"
+
+SPEC = ROOT / "winnotix.spec"
+DIST = ROOT / "dist" / "Winnotix"
 
 MPV_RELEASES = "https://api.github.com/repos/shinchiro/mpv-winbuild-cmake/releases/latest"
 MPV_DLL_NAMES = ("libmpv-2.dll", "mpv-2.dll", "mpv-1.dll")
@@ -222,6 +228,74 @@ def cmd_test(args) -> int:
     ).returncode
 
 
+def cmd_package(args) -> int:
+    setup()
+
+    python = str(venv_python())
+    check = subprocess.run([python, "-m", "PyInstaller", "--version"],
+                           capture_output=True, text=True)
+    if check.returncode != 0:
+        raise Failure(
+            "PyInstaller is not installed in the venv.\n"
+            "  It is listed in requirements-dev.txt, so:  python build.py setup"
+        )
+    say(f"PyInstaller {check.stdout.strip()}")
+
+    if not SPEC.is_file():
+        raise Failure(f"missing {SPEC.name}")
+
+    # PyInstaller deletes the previous dist/ before rebuilding, and Windows will
+    # not let it delete a running executable. Left to itself that surfaces as a
+    # PermissionError traceback from deep inside shutil; worse, the delete is
+    # partial, so the previous build is destroyed *and* not replaced.
+    previous = DIST / "Winnotix.exe"
+    if previous.is_file():
+        try:
+            with open(previous, "r+b"):
+                pass
+        except OSError:
+            raise Failure(
+                f"{previous} is in use, so the previous build cannot be replaced.\n"
+                "  Close Winnotix and run this again."
+            ) from None
+
+    step("Packaging")
+    # --noconfirm: overwrite a previous dist/ without prompting, since this is
+    # run repeatedly. --clean: discard PyInstaller's own analysis cache, which
+    # otherwise keeps stale copies of files the spec no longer bundles.
+    run([python, "-m", "PyInstaller", "--noconfirm", "--clean", str(SPEC)],
+        cwd=str(ROOT))
+
+    exe = DIST / "Winnotix.exe"
+    if not exe.is_file():
+        raise Failure(f"PyInstaller reported success but {exe} is missing")
+
+    total = sum(f.stat().st_size for f in DIST.rglob("*") if f.is_file())
+    count = sum(1 for f in DIST.rglob("*") if f.is_file())
+    say(f"built {DIST.relative_to(ROOT)}  ({count:,} files, "
+        f"{total / (1024 * 1024):.0f} MB)")
+
+    # The two bundled trees the app resolves at run time. Their absence is the
+    # failure this build is most likely to have, and the one that would
+    # otherwise show up as missing flags and a dead player rather than an error.
+    for probe, label in ((Path("_internal/resources/countries.list"), "resources"),
+                         (Path("_internal/vendor/libmpv"), "libmpv")):
+        target = DIST / probe
+        found = target.exists() and (not target.is_dir() or any(target.iterdir()))
+        say(f"{label:<10} {'bundled' if found else 'MISSING — ' + str(probe)}")
+
+    if args.zip:
+        step("Compressing")
+        archive = shutil.make_archive(str(ROOT / "dist" / "Winnotix-portable"),
+                                      "zip", root_dir=str(DIST.parent),
+                                      base_dir=DIST.name)
+        size = Path(archive).stat().st_size / (1024 * 1024)
+        say(f"{Path(archive).relative_to(ROOT)}  ({size:.0f} MB)")
+
+    print(f"\nPortable build ready. Run it with:  {exe}")
+    return 0
+
+
 def cmd_doctor(args) -> int:
     step("Winnotix environment")
     ok = True
@@ -246,6 +320,14 @@ def cmd_doctor(args) -> int:
     else:
         print(f"  {'libmpv':<18} MISSING — run: python build.py setup")
         ok = False
+
+    check = (subprocess.run([str(venv_python()), "-m", "PyInstaller", "--version"],
+                            capture_output=True, text=True)
+             if venv_python().is_file() else None)
+    if check is not None and check.returncode == 0:
+        print(f"  {'PyInstaller':<18} {check.stdout.strip()}")
+    else:
+        print(f"  {'PyInstaller':<18} not installed (only needed for: package)")
 
     seven = find_7zip()
     print(f"  {'7-Zip':<18} {seven or 'not found (only needed to fetch libmpv)'}")
@@ -332,6 +414,12 @@ def main(argv: list[str] | None = None) -> int:
     p_test.add_argument("extra", nargs=argparse.REMAINDER,
                         help="arguments passed through to pytest")
     p_test.set_defaults(func=cmd_test)
+
+    p_package = sub.add_parser("package",
+                               help="build the portable app into dist/Winnotix")
+    p_package.add_argument("--zip", action="store_true",
+                           help="also produce dist/Winnotix-portable.zip")
+    p_package.set_defaults(func=cmd_package)
 
     sub.add_parser("doctor", help="report what is and is not ready").set_defaults(
         func=cmd_doctor)
