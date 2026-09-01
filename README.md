@@ -1,5 +1,8 @@
 # Winnotix
 
+![shadow](https://imglink.cc/cdn/rrbDmpEvus.png)
+
+
 An IPTV player for Windows — a port of [Hypnotix](https://github.com/linuxmint/hypnotix), the Linux
 Mint IPTV app, rebuilt on PySide6 with libmpv for playback.
 
