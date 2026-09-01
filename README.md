@@ -195,6 +195,22 @@ Many BBC regional channels are affected. Most have an HLS equivalent: swap `vs-c
 works for the `pc_hd_abr_v2` and `iptv_hd_abr_v1` profiles; the `hevc_*` ones are DASH-only and
 404 on the HLS host, so pick a non-HEVC entry.
 
+## Checking a list before you watch it
+
+Public playlists rot, and normally you find out by clicking a channel and waiting. **Check
+Channels** in the menu (Ctrl+T) asks first, for the list you are looking at. On the Free-TV UK
+playlist that is 54 channels in a few seconds: typically **43 playable, 7 dead, 4 geo-blocked**.
+
+Dead and unreachable channels are **dimmed, not hidden**, with the reason on hover. A check is one
+request at one moment — the same list reported three unreachable channels on one run and none a few
+minutes later — so the row stays exactly where it is and stays clickable. A **403 is treated as
+geo-blocking rather than death**: the channel is alive, just not from here, so it is counted
+separately and never dimmed.
+
+It checks the open list rather than the whole provider — a country is a few hundred requests, the
+iptv-org catalogue is eleven thousand — with eight workers, one request per distinct address, and
+results cached for a week. Pressing the menu item again stops a run.
+
 ## Streams that play the wrong thing
 
 The failures above announce themselves. A smaller set does not: the stream answers normally and

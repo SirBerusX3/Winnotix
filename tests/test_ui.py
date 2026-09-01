@@ -509,3 +509,56 @@ def test_reapplying_a_guide_does_not_stack_programmes_onto_a_row(qapp):
     widget.apply_guide(lambda c: guide.now_next(c, now))
 
     assert widget.item(0).text().count("News") == 1
+
+
+def test_dead_channels_are_dimmed_not_removed(qapp):
+    """A check is one request at one moment, so the row stays clickable."""
+    from tests.conftest import FakeSettings
+    from winnotix.core.health import BLOCKED, DEAD, OK, Result
+    from winnotix.ui.logos import LogoCache
+    from winnotix.ui.theme import current_palette
+    from winnotix.ui.widgets import ChannelList
+
+    class Ch:
+        def __init__(self, name, url):
+            self.name, self.url, self.id = name, url, None
+            self.logo = self.logo_path = None
+
+    verdicts = {
+        "http://x/1": Result(OK),
+        "http://x/2": Result(DEAD, "The server has nothing at that address."),
+        "http://x/3": Result(BLOCKED, "geo-blocked"),
+        "http://x/4": None,                       # never checked
+    }
+    listed = [Ch("Alive", "http://x/1"), Ch("Dead", "http://x/2"),
+              Ch("Blocked", "http://x/3"), Ch("Unchecked", "http://x/4")]
+
+    widget = ChannelList(LogoCache(FakeSettings()), current_palette())
+    widget.set_channels(listed)
+    assert [c.name for c in widget.channels()] == [c.name for c in listed]
+
+    marked = widget.apply_health(lambda c: verdicts[c.url])
+
+    # Only the dead one is marked: a 403 means alive-but-not-from-here.
+    assert marked == 1
+    assert widget.count() == 4, "nothing is removed"
+    assert "nothing at that address" in widget.item(1).toolTip()
+    assert widget.item(1).foreground().color() != widget.item(0).foreground().color()
+
+
+def test_the_sidebar_stylesheet_does_not_fix_the_row_colour():
+    """A `color` on QListWidget#Sidebar::item overrides setForeground().
+
+    That is not theoretical: the channel check computed its dimming correctly
+    and the stylesheet painted over it, so the marks were invisible while the
+    unit test -- which read item data rather than what Qt paints -- passed.
+    Normal rows take their colour from the widget palette instead.
+    """
+    import re
+
+    from winnotix.ui.theme import current_palette, stylesheet
+
+    css = stylesheet(current_palette())
+    match = re.search(r"QListWidget#Sidebar::item \{(.*?)\}", css, re.S)
+    assert match, "the sidebar item rule should still exist"
+    assert "color:" not in match.group(1), match.group(1)

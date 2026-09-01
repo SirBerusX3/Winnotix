@@ -14,6 +14,28 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
 
 ### Added
 
+- **A channel check** (`winnotix/core/health.py`, menu → Check Channels, Ctrl+T). Until now a dead
+  channel announced itself only by failing to play; `streamcheck` then explained why. This asks the
+  question first, for the list on screen. Measured on the Free-TV UK playlist: **54 channels in
+  2.3–4.8 s — 43 playable, 7 dead, 4 geo-blocked**, and it independently caught the ITV 1–4
+  micro_httpd case this changelog documents, reporting "the body is another HTTP response".
+  - **The same response means opposite things before and after a failure**, which is why the
+    verdict is computed here rather than reused. A manifest that loads is bad news on the failure
+    path — the address is good, so `describe_response` says the channel is off air — and is the
+    *good* outcome when checking ahead. The wording is borrowed; the judgement is not.
+  - **A 403 is not death.** It is usually geo-blocking, so it is its own state, counted separately
+    and never dimmed: the channel is alive and simply not available from here.
+  - **Nothing is hidden or removed, only dimmed**, with the reason in the tooltip. A check is one
+    request at one moment: across two runs minutes apart the same list reported 3 unreachable and
+    then 0, all of them transient timeouts. Being wrong about a channel someone wanted is worse
+    than leaving a dead row in place, so the row stays and stays clickable.
+  - **Scoped to the open list, not the provider.** A country is tens or hundreds of requests; the
+    iptv-org catalogue is 11,000, which is not something to fire at other people's servers from a
+    menu. Eight workers, a 4/6 s timeout, one request per distinct URL however many channels share
+    it, and verdicts cached on disk for seven days so a second pass costs nothing.
+  - Pressing the menu item again stops a run in progress. Queued checks are cancelled rather than
+    merely ignored, so stopping costs one timeout instead of one per remaining channel.
+
 - **A programme guide** (`winnotix/core/epg.py`, `ChannelList.apply_guide`, Preferences →
   Playlists). Upstream Hypnotix has none — it stores a per-provider EPG URL, the sixth field of
   the `:::` format and an entry box on the Add-provider form, and then never reads it. Someone
@@ -503,6 +525,14 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
   `hypnotix/` pinned as a submodule at `0e0fa1c`.
 
 ### Fixed
+
+- **The sidebar stylesheet painted over per-row colours.** `QListWidget#Sidebar::item` set
+  `color`, and a stylesheet colour beats `QListWidgetItem.setForeground()` — so the channel check
+  computed its dimming correctly and then had it overwritten. Found by looking at a screenshot:
+  the unit test passed throughout, because it read the item's foreground data rather than what Qt
+  actually paints. Normal rows now take their colour from the widget palette, which `ChannelList`
+  already sets to the same value, and a test asserts the rule carries no `color` so this cannot
+  come back.
 
 - **Wide logos were clipped on both edges in the Movies and Series poster grid**
   (`winnotix/ui/pages.py`, `winnotix/ui/logos.py`). `POSTER_SIZE` was `QSize(200, 200)` in

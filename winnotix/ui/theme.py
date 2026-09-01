@@ -161,11 +161,14 @@ QListWidget#Sidebar {{
     border-right: 1px solid {p.border};
     outline: none;
 }}
+/* No `color` here on purpose. A stylesheet colour on ::item wins over
+   QListWidgetItem.setForeground(), which is how the channel check marks a dead
+   row -- setting it here silently painted over the mark. Normal rows get their
+   colour from the widget palette, which ChannelList sets to the same value. */
 QListWidget#Sidebar::item {{
     padding: 5px 8px;
     border: none;
     border-radius: 4px;
-    color: {p.text};
 }}
 QListWidget#Sidebar::item:hover    {{ background-color: {p.surface_alt}; }}
 QListWidget#Sidebar::item:selected {{

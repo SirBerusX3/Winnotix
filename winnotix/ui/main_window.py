@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
     QStackedWidget,
 )
 
-from ..core import epg, genres, mpvloader, ytdlp
+from ..core import epg, genres, health, mpvloader, ytdlp
 from ..core.filters import Blocklist, FilterResult
 from ..core.genres import GenreIndex
 from ..core.common import (
@@ -75,6 +75,8 @@ class MainWindow(QMainWindow):
     playback_failed = Signal(object, str)
     stream_diagnosed = Signal(object, str)
     guides_loaded = Signal(str, object)   # country code, list[Guide]
+    check_progress = Signal(int, int)
+    check_finished = Signal(object)
 
     def __init__(self) -> None:
         super().__init__()
@@ -103,6 +105,8 @@ class MainWindow(QMainWindow):
         self.epg_urls: list[str] = []       # guides this provider declares
         self.epg_guides: list = []          # parsed guides for the open country
         self.epg_country: str | None = None
+        self.health = health.HealthCache().load()
+        self.checking = False
 
         # State, mirroring upstream's MainWindow attributes.
         self.providers: list[Provider] = []
@@ -238,12 +242,16 @@ class MainWindow(QMainWindow):
         self.info_action = self.header.add_menu_action("Stream Information", "info",
                                                        "F2", self.open_stream_info)
         self.info_action.setEnabled(False)
+        self.check_action = self.header.add_menu_action(
+            "Check Channels", "refresh", "Ctrl+T", self.check_channels)
         self.header.menu.addSeparator()
         self.header.add_menu_action("About", "info", "F1", self.open_about)
         self.header.add_menu_action("Quit", "exit", "Ctrl+Q", self.close)
 
         self.provider_loaded.connect(self._on_provider_loaded)
         self.guides_loaded.connect(self._on_guides_loaded)
+        self.check_progress.connect(self._on_check_progress)
+        self.check_finished.connect(self._on_check_finished)
         self.series_loaded.connect(self._on_series_loaded)
         self.playback_failed.connect(self._on_playback_failed)
         self.stream_diagnosed.connect(self._on_stream_diagnosed)
@@ -615,6 +623,56 @@ class MainWindow(QMainWindow):
         self.navigate_to(CHANNELS, favorites=favorites)
         self.status.set_status(f"{self.channels.channel_list.count()} channels")
         self._maybe_load_guides()
+
+    # -- channel health ------------------------------------------------
+
+    def check_channels(self) -> None:
+        """Ask every channel in the open list whether it still answers.
+
+        Scoped to what is on screen rather than the whole provider: a country
+        is tens or hundreds of requests, a full catalogue is 11,000, and the
+        second is not a thing to fire at other people's servers from a menu.
+        """
+        if self.checking:
+            self.checking = False       # a second press stops the run
+            self.status.set_status("Stopping the check…")
+            return
+        channels = self.channels.channel_list.channels()
+        if not channels:
+            self.status.set_status("Open a channel list first.")
+            return
+        self.checking = True
+        self.check_action.setText("Stop Checking")
+        self.status.set_status(f"Checking {len(channels)} channels…")
+        self._run_check(channels)
+
+    @async_function
+    def _run_check(self, channels) -> None:
+        """Worker thread: many small requests. Must not touch widgets."""
+        try:
+            result = health.sweep(
+                channels, self.health,
+                user_agent=self.settings.get_string("user-agent"),
+                referer=self.settings.get_string("http-referer"),
+                progress=lambda done, total: self.check_progress.emit(done, total),
+                should_stop=lambda: not self.checking,
+            )
+        except Exception as exc:        # one bad host must not kill the thread
+            print(f"[winnotix] channel check failed: {exc}")
+            result = health.Sweep()
+        self.check_finished.emit(result)
+
+    def _on_check_progress(self, done: int, total: int) -> None:
+        self.status.set_status(f"Checking channels… {done} of {total}")
+
+    def _on_check_finished(self, result) -> None:
+        self.checking = False
+        self.check_action.setText("Check Channels")
+        marked = self.channels.channel_list.apply_health(
+            lambda channel: self.health.get(channel.url))
+        summary = result.summary() or "nothing to check"
+        note = f" — {marked} dimmed" if marked else ""
+        self.status.set_status(f"Checked: {summary}{note}")
 
     # -- programme guide -----------------------------------------------
 

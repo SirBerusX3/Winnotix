@@ -8,7 +8,7 @@ categories and providers.
 from __future__ import annotations
 
 from PySide6.QtCore import QSize, Qt, Signal
-from PySide6.QtGui import QAction, QColor, QPalette
+from PySide6.QtGui import QAction, QBrush, QColor, QPalette
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QFrame,
@@ -296,6 +296,7 @@ class ChannelList(QListWidget):
         super().__init__(parent)
         self.setObjectName("Sidebar")
         self.logo_cache = logo_cache
+        self._palette = palette
 
         # Mirrors the stylesheet on the widget palette. Redundant while the
         # stylesheet is applied, but it keeps the list readable if it is ever
@@ -368,6 +369,42 @@ class ChannelList(QListWidget):
                 tip.append(f"Next   {following.when()}  {following.title}")
             item.setToolTip("\n".join(tip))
         return matched
+
+    def channels(self) -> list:
+        """The channels currently listed, in order."""
+        found = []
+        for index in range(self.count()):
+            channel = self.item(index).data(Qt.ItemDataRole.UserRole)
+            if channel is not None:
+                found.append(channel)
+        return found
+
+    def apply_health(self, lookup) -> int:
+        """Dim channels a check found dead, and say why when hovered.
+
+        Dimmed, never hidden or removed. A check is one request at one moment,
+        and a host that rate-limited us looks identical to one that died, so
+        the row stays where it is and stays clickable -- the mark is a warning,
+        not a verdict the user cannot overrule.
+
+        `lookup` returns a health Result or None for "not checked".
+        """
+        marked = 0
+        for index in range(self.count()):
+            item = self.item(index)
+            channel = item.data(Qt.ItemDataRole.UserRole)
+            if channel is None:
+                continue
+            result = lookup(channel)
+            if result is None or result.playable:
+                item.setForeground(QBrush())        # back to the stylesheet colour
+                continue
+            marked += 1
+            item.setForeground(QBrush(QColor(self._palette.text_dim)))
+            detail = result.detail or "This channel did not respond."
+            existing = item.toolTip() or (channel.name or "")
+            item.setToolTip(f"{existing}\n\n{detail}")
+        return marked
 
     def visible_count(self) -> int:
         return sum(1 for i in range(self.count()) if not self.item(i).isHidden())
