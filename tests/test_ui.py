@@ -370,13 +370,60 @@ def test_the_placeholder_is_never_upscaled_onto_a_poster(qapp):
     from PySide6.QtGui import QPixmap
 
     from winnotix.core.paths import resources_dir
-    from winnotix.ui.logos import POSTER_SIZE
+    from winnotix.ui.pages import POSTER_IMAGE_SIZE
 
     pixmap = QPixmap(str(resources_dir() / "generic_tv_logo.png"))
     assert not pixmap.isNull()
     # Twice the poster, so it still downscales on a HiDPI screen.
-    assert pixmap.width() >= POSTER_SIZE.width() * 2
-    assert pixmap.height() >= POSTER_SIZE.height() * 2
+    assert pixmap.width() >= POSTER_IMAGE_SIZE.width() * 2
+    assert pixmap.height() >= POSTER_IMAGE_SIZE.height() * 2
+
+
+def test_a_poster_is_scaled_to_fit_the_tile_that_shows_it():
+    """A QLabel clips an oversized pixmap centred rather than shrinking it.
+
+    POSTER_SIZE was 200x200 in logos.py while the tile was 180 wide with 8px
+    margins, so every wide logo lost 18px off each edge -- "Anger Management
+    Channel" arrived with both ends missing. Deriving one from the other is
+    what stops that recurring, so assert the relationship, not the numbers.
+    """
+    from winnotix.ui.pages import (
+        POSTER_IMAGE_SIZE,
+        POSTER_TILE_MARGIN,
+        POSTER_TILE_SIZE,
+    )
+
+    usable_width = POSTER_TILE_SIZE.width() - 2 * POSTER_TILE_MARGIN
+    assert POSTER_IMAGE_SIZE.width() == usable_width
+    assert POSTER_IMAGE_SIZE.width() <= POSTER_TILE_SIZE.width()
+    # The label also has to leave room for the name beneath it.
+    assert POSTER_IMAGE_SIZE.height() < POSTER_TILE_SIZE.height()
+
+
+def test_posters_are_requested_at_the_size_they_are_shown(qapp, tmp_path):
+    """The scale request and the label geometry must be the same size."""
+    from PySide6.QtGui import QPixmap
+
+    from tests.conftest import FakeSettings
+    from winnotix.ui.logos import LogoCache
+    from winnotix.ui.pages import POSTER_IMAGE_SIZE, VodPage
+
+    # A deliberately over-wide logo: this is the shape that was being clipped.
+    wide = tmp_path / "wide.png"
+    QPixmap(900, 300).save(str(wide))
+
+    class Item:
+        name = "Wide Logo"
+        logo = None
+        logo_path = str(wide)
+
+    page = VodPage(LogoCache(FakeSettings()))
+    poster = page._poster(Item())
+    shown = poster.image_label.pixmap()
+
+    assert poster.image_label.size() == POSTER_IMAGE_SIZE
+    assert shown.width() <= POSTER_IMAGE_SIZE.width()
+    assert shown.height() <= POSTER_IMAGE_SIZE.height()
 
 
 def test_we_no_longer_ship_hypnotix_own_logo():

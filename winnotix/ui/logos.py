@@ -29,9 +29,12 @@ from PySide6.QtGui import QIcon, QPixmap
 from ..core import logoproxy
 from ..core.paths import PROVIDERS_PATH, resources_dir
 
-# Upstream sizes: 64x32 for TV rows, 200x200 for VOD/series posters.
+# Upstream sizes: 64x32 for TV rows, 200x200 for VOD/series posters. Only the
+# row size lives here. The poster scale target is derived from the tile that
+# has to display it -- pages.POSTER_IMAGE_SIZE -- because the two sitting in
+# different modules is exactly how they drifted apart: 200px pixmaps were being
+# put into a label 164px wide, which clips rather than shrinks.
 TV_LOGO_SIZE = QSize(64, 32)
-POSTER_SIZE = QSize(200, 200)
 
 # Outcomes of a single HTTP attempt. _GONE and _REFUSED are both failures, but
 # only _REFUSED is worth asking someone else for -- see logoproxy.refused.

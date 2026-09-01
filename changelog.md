@@ -467,6 +467,23 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
 
 ### Fixed
 
+- **Wide logos were clipped on both edges in the Movies and Series poster grid**
+  (`winnotix/ui/pages.py`, `winnotix/ui/logos.py`). `POSTER_SIZE` was `QSize(200, 200)` in
+  `logos.py` while the tile that has to display it is 180 wide with 8px margins in `pages.py` —
+  164 usable. A `QLabel` clips a pixmap wider than itself instead of shrinking it, and clips it
+  centred, so every wide logo lost 18px off each end: "Anger Management Channel" arrived with both
+  ends missing and "Designated Survivor" rendered as "ESIGNAT / URVIVO".
+  - **The two constants living in different modules is the actual defect**, so the fix is to derive
+    one from the other — `POSTER_IMAGE_SIZE` is now the tile width less the margins, beside the
+    tile geometry it belongs to, and `logos.py` keeps only `TV_LOGO_SIZE`. The regression test
+    asserts the relationship rather than the numbers, so changing the tile size cannot
+    reintroduce this.
+  - The image label is also given an explicit width now rather than only a fixed height, so what it
+    can show is stated rather than inferred from the layout.
+  - Pre-existing, and not specific to genre routing: `VodPage` is Xtream's VOD grid too. Routing is
+    what made it reachable for an M3U provider, which is how it was noticed. Verified against the
+    live iptv-org Series page: 46 posters, none exceeding its label in either dimension.
+
 - **The Pluto TV blocklist missed every entry in the larger of the two bundled catalogues**
   (`resources/blocklist.json`). The existing rule matches `host_suffix: ".pluto.tv"`, which is
   how Free-TV links the stitcher — but iptv-org links through a redirector, `jmp2.uk`, and a host

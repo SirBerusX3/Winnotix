@@ -41,10 +41,22 @@ from ..core import catalogue, countries, genres
 from ..core.common import MOVIES_GROUP, SERIES_GROUP, TV_GROUP
 from ..core.paths import resources_dir
 from . import icons
-from .logos import POSTER_SIZE
 from .theme import Palette
 from .video_widget import VideoWidget
 from .widgets import ChannelList, FlowPage, Tile, separator, tool_button
+
+# Poster tiles, and the space a poster actually gets inside one. A QLabel clips
+# a pixmap wider than itself instead of shrinking it, and clips it centred, so
+# an oversized poster loses both edges -- "Designated Survivor" rendered as
+# "ESIGNAT / URVIVO". The scale target is therefore the tile width less the
+# layout margins, derived here rather than named separately, so it cannot drift
+# away from the tile again.
+POSTER_TILE_SIZE = QSize(180, 230)
+POSTER_TILE_MARGIN = 8
+POSTER_IMAGE_HEIGHT = 150
+POSTER_IMAGE_SIZE = QSize(
+    POSTER_TILE_SIZE.width() - 2 * POSTER_TILE_MARGIN, POSTER_IMAGE_HEIGHT
+)
 
 PROVIDER_TYPE_URL = "url"
 PROVIDER_TYPE_LOCAL = "local"
@@ -356,15 +368,15 @@ class VodPage(FlowPage):
         button = QPushButton()
         button.setObjectName("Tile")
         button.setCursor(Qt.CursorShape.PointingHandCursor)
-        button.setFixedSize(QSize(180, 230))
+        button.setFixedSize(POSTER_TILE_SIZE)
         button.clicked.connect(lambda _checked=False, i=item: self.item_clicked.emit(i))
 
         image = QLabel()
         image.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        image.setFixedHeight(150)
-        pixmap = self.logo_cache.pixmap(item.logo_path, POSTER_SIZE)
+        image.setFixedSize(POSTER_IMAGE_SIZE)
+        pixmap = self.logo_cache.pixmap(item.logo_path, POSTER_IMAGE_SIZE)
         image.setPixmap(pixmap if pixmap is not None
-                        else self.logo_cache.placeholder(POSTER_SIZE))
+                        else self.logo_cache.placeholder(POSTER_IMAGE_SIZE))
 
         label = QLabel(item.name or "")
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -372,7 +384,7 @@ class VodPage(FlowPage):
         button.setToolTip(item.name or "")
 
         layout = QVBoxLayout(button)
-        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setContentsMargins(*(POSTER_TILE_MARGIN,) * 4)
         layout.addWidget(image)
         layout.addWidget(label, 1)
 
@@ -383,7 +395,7 @@ class VodPage(FlowPage):
         return button
 
     def _on_logo_ready(self, logo_path: str) -> None:
-        pixmap = self.logo_cache.pixmap(logo_path, POSTER_SIZE)
+        pixmap = self.logo_cache.pixmap(logo_path, POSTER_IMAGE_SIZE)
         if pixmap is None:
             return
         for button in self._tiles.get(logo_path, []):
