@@ -192,3 +192,44 @@ def test_existing_config_survives_a_failed_write(settings, settings_path, monkey
 def test_non_ascii_values_round_trip(settings, settings_path):
     settings.set_string("user-agent", "Winnotix/1.0 (Café)")
     assert SettingsShim(path=settings_path).get_string("user-agent") == "Winnotix/1.0 (Café)"
+
+
+# --------------------------------------------------------------------------
+# Numeric accessors
+#
+# Not part of the seven upstream calls, but real Gio.Settings method names, so
+# the shim keeps its shape rather than growing a bespoke API for the subtitle
+# preferences.
+# --------------------------------------------------------------------------
+
+def test_doubles_round_trip(settings_path):
+    settings = SettingsShim(settings_path)
+    settings.set_double("subtitle-scale", 1.75)
+    assert settings.get_double("subtitle-scale") == 1.75
+    assert SettingsShim(settings_path).get_double("subtitle-scale") == 1.75
+
+
+def test_ints_round_trip(settings_path):
+    settings = SettingsShim(settings_path)
+    settings.set_int("subtitle-position", 85)
+    assert settings.get_int("subtitle-position") == 85
+    assert SettingsShim(settings_path).get_int("subtitle-position") == 85
+
+
+def test_a_corrupt_number_falls_back_to_the_default(settings_path):
+    """A hand-edited settings.json should not stop the app starting."""
+    settings_path.write_text(json.dumps({"subtitle-scale": "enormous"}),
+                             encoding="utf-8")
+    settings = SettingsShim(settings_path)
+    assert settings.get_double("subtitle-scale") == DEFAULTS["subtitle-scale"]
+
+
+def test_the_subtitle_defaults_match_mpv(settings_path):
+    """1.0 and 100 are mpv's own sub-scale and sub-pos, so the defaults are a
+    no-op until someone changes them."""
+    settings = SettingsShim(settings_path)
+    assert settings.get_double("subtitle-scale") == 1.0
+    assert settings.get_int("subtitle-position") == 100
+    # True is what the app did before the switch existed: mpv auto-selects a
+    # track the stream marks as default, so this makes that undoable.
+    assert settings.get_boolean("subtitles-visible") is True

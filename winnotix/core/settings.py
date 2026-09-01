@@ -45,6 +45,13 @@ DEFAULTS: dict[str, Any] = {
     # published in, which is a visible change to a playlist the user chose.
     # See core/genres.py.
     "route-by-genre": False,
+    # Subtitles. mpv already auto-selects a track a stream marks as default, so
+    # True is what the app did before these existed; the switch is what makes
+    # that undoable. Scale and position are mpv's own defaults, and only affect
+    # text subtitles -- a bitmap DVB track ignores them. See ui/main_window.
+    "subtitles-visible": True,
+    "subtitle-scale": 1.0,
+    "subtitle-position": 100,
     # On by default: guides are named by the playlist itself, so this is the
     # same trust boundary as its streams and logos, and nothing is fetched
     # until a country's channel list is opened. See core/epg.py.
@@ -54,7 +61,8 @@ DEFAULTS: dict[str, Any] = {
 # Keys upstream's org.x.hypnotix schema does not have. Kept separate so the
 # tests can still assert we have not drifted from upstream on the shared ones.
 WINNOTIX_KEYS = {"hide-unplayable", "hide-adult-content", "proxy-blocked-logos",
-                 "route-by-genre", "show-epg"}
+                 "route-by-genre", "show-epg", "subtitles-visible",
+                 "subtitle-scale", "subtitle-position"}
 UPSTREAM_KEYS = set(DEFAULTS) - WINNOTIX_KEYS
 
 
@@ -110,6 +118,24 @@ class SettingsShim:
 
     def set_boolean(self, key: str, value: bool) -> None:
         self._set(key, bool(value))
+
+    def get_double(self, key: str) -> float:
+        try:
+            return float(self._values.get(key, DEFAULTS.get(key, 0.0)))
+        except (TypeError, ValueError):
+            return float(DEFAULTS.get(key, 0.0) or 0.0)
+
+    def set_double(self, key: str, value: float) -> None:
+        self._set(key, float(value))
+
+    def get_int(self, key: str) -> int:
+        try:
+            return int(self._values.get(key, DEFAULTS.get(key, 0)))
+        except (TypeError, ValueError):
+            return int(DEFAULTS.get(key, 0) or 0)
+
+    def set_int(self, key: str, value: int) -> None:
+        self._set(key, int(value))
 
     def get_strv(self, key: str) -> list[str]:
         value = self._values.get(key, DEFAULTS.get(key, []))

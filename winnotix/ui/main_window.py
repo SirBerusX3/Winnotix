@@ -186,6 +186,7 @@ class MainWindow(QMainWindow):
         self.preferences = P.PreferencesPage(self.settings)
         self.preferences.setting_changed.connect(self._on_setting_changed)
         self.preferences.bool_setting_changed.connect(self._on_bool_setting_changed)
+        self.preferences.number_setting_changed.connect(self._on_number_setting_changed)
         self.preferences.ytdlp_update_clicked.connect(self.download_ytdlp)
         self._add_page(PREFERENCES, self.preferences)
 
@@ -245,6 +246,9 @@ class MainWindow(QMainWindow):
         self.info_action.setEnabled(False)
         self.check_action = self.header.add_menu_action(
             "Check Channels", "refresh", "Ctrl+T", self.check_channels)
+        # "v" is what mpv itself binds this to, so muscle memory carries over.
+        self.subtitles_action = self.header.add_menu_action(
+            "Subtitles", "info", "V", self.toggle_subtitles)
         self.header.menu.addSeparator()
         self.header.add_menu_action("About", "info", "F1", self.open_about)
         self.header.add_menu_action("Quit", "exit", "Ctrl+Q", self.close)
@@ -883,8 +887,55 @@ class MainWindow(QMainWindow):
             loglevel="warn",
         )
         self.mpv.volume = self.volume
+        self._apply_subtitle_settings()
         self.mpv.observe_property("core-idle", self._on_core_idle)
         self.mpv.register_event_callback(self._on_mpv_event)
+
+    # -- subtitles -----------------------------------------------------
+
+    def _apply_subtitle_settings(self) -> None:
+        """Push the subtitle preferences at the player.
+
+        Set one property at a time and ignore a failure on any of them: an
+        older libmpv missing one option should cost that option, not playback.
+        """
+        if self.mpv is None:
+            return
+        for prop, value in (
+            ("sub-visibility", self.settings.get_boolean("subtitles-visible")),
+            ("sub-scale", self.settings.get_double("subtitle-scale")),
+            ("sub-pos", self.settings.get_int("subtitle-position")),
+        ):
+            try:
+                self.mpv._set_property(prop, value)
+            except Exception as exc:
+                print(f"[winnotix] mpv rejected {prop}={value!r}: {exc}")
+
+    def subtitle_tracks(self) -> list:
+        """Selectable subtitle tracks on whatever is playing.
+
+        Empty means there is nothing to switch on -- either the stream carries
+        no subtitle track, or its subtitles are burned into the picture, which
+        no player option can undo.
+        """
+        if self.mpv is None:
+            return []
+        try:
+            return [t for t in (self.mpv.track_list or []) if t.get("type") == "sub"]
+        except Exception:
+            return []
+
+    def toggle_subtitles(self) -> None:
+        visible = not self.settings.get_boolean("subtitles-visible")
+        self.settings.set_boolean("subtitles-visible", visible)
+        self.preferences.set_subtitles_visible(visible)
+        self._apply_subtitle_settings()
+        if visible and not self.subtitle_tracks():
+            self.status.set_status(
+                "Subtitles on — this channel carries no subtitle track, so any "
+                "subtitles you see are part of the picture.")
+        else:
+            self.status.set_status(f"Subtitles {'on' if visible else 'off'}")
 
     def _on_mpv_log(self, level: str, prefix: str, text: str) -> None:
         """mpv's event thread. Must stay cheap -- see core/mpvlog.py."""
@@ -1024,6 +1075,13 @@ class MainWindow(QMainWindow):
         if key == "mpv-options":
             self.status.set_status("MPV options will apply the next time Winnotix starts.")
 
+    def _on_number_setting_changed(self, key: str, value: float) -> None:
+        if key == "subtitle-position":
+            self.settings.set_int(key, int(value))
+        else:
+            self.settings.set_double(key, value)
+        self._apply_subtitle_settings()
+
     def _on_bool_setting_changed(self, key: str, value: bool) -> None:
         self.settings.set_boolean(key, value)
         if key == "hide-adult-content" and self.active_provider is not None:
@@ -1056,6 +1114,9 @@ class MainWindow(QMainWindow):
                 if value else
                 "Logos will only be fetched from the address in the playlist."
             )
+            return
+        if key == "subtitles-visible":
+            self._apply_subtitle_settings()
             return
         if key == "show-epg":
             self.epg_country = None
@@ -1165,6 +1226,14 @@ class MainWindow(QMainWindow):
             ("Channel", self.active_channel.name),
             ("URL", self.active_channel.url),
         ]
+        tracks = self.subtitle_tracks()
+        if tracks:
+            fields.append(("Subtitles", ", ".join(
+                f"{t.get('lang') or 'unknown'} ({t.get('codec') or '?'})"
+                + (" — shown" if t.get("selected") else "")
+                for t in tracks)))
+        else:
+            fields.append(("Subtitles", "none in this stream"))
         current, following = self._now_next(self.active_channel)
         if current is not None:
             fields.append(("Now", f"{current.when()}  {current.title}"))

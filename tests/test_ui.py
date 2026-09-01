@@ -562,3 +562,70 @@ def test_the_sidebar_stylesheet_does_not_fix_the_row_colour():
     match = re.search(r"QListWidget#Sidebar::item \{(.*?)\}", css, re.S)
     assert match, "the sidebar item rule should still exist"
     assert "color:" not in match.group(1), match.group(1)
+
+
+def _preferences(qapp):
+    from tests.conftest import FakeSettings
+    from winnotix.ui.pages import PreferencesPage
+
+    class Settings(FakeSettings):
+        def get_double(self, key):
+            return {"subtitle-scale": 1.0}.get(key, 0.0)
+
+        def get_int(self, key):
+            return {"subtitle-position": 100}.get(key, 0)
+
+    return PreferencesPage(Settings(subtitles_visible=True))
+
+
+def test_the_subtitle_sliders_report_their_values(qapp):
+    page = _preferences(qapp)
+    seen = []
+    page.number_setting_changed.connect(lambda k, v: seen.append((k, v)))
+
+    page.subtitle_scale.setValue(150)
+    page.subtitle_position.setValue(80)
+
+    assert ("subtitle-scale", 1.5) in seen
+    assert ("subtitle-position", 80.0) in seen
+    assert page.subtitle_scale_label.text() == "1.50x"
+    assert page.subtitle_position_label.text() == "80%"
+
+
+def test_the_position_slider_cannot_push_subtitles_off_screen(qapp):
+    """mpv's sub-pos is a percentage down the frame and accepts up to 150,
+    which puts the text below the picture. The slider stops at the bottom."""
+    page = _preferences(qapp)
+    assert page.subtitle_position.maximum() == 100
+    assert page.subtitle_position.minimum() == 0
+
+
+def test_toggling_subtitles_elsewhere_does_not_echo_back(qapp):
+    """The V key sets the preference and then syncs the checkbox; without
+    blocking signals that would emit a change and toggle it straight back."""
+    page = _preferences(qapp)
+    emitted = []
+    page.bool_setting_changed.connect(lambda k, v: emitted.append((k, v)))
+
+    page.set_subtitles_visible(False)
+
+    assert page.subtitles_check.isChecked() is False
+    assert emitted == []
+
+
+def test_preference_hints_are_tall_enough_for_their_text(qapp):
+    """Word-wrapped QLabels were clipped mid-sentence on the preferences page.
+
+    A QVBoxLayout takes a wrapped label's sizeHint at face value, and that hint
+    is computed for a width the label does not get, so the last line or two of
+    every explanation was cut off. The fix is the size policy, so assert the
+    policy rather than pixel heights.
+    """
+    page = _preferences(qapp)
+    from PySide6.QtWidgets import QLabel
+
+    wrapped = [w for w in page.widget().findChildren(QLabel) if w.wordWrap()]
+    assert wrapped, "the preferences page should have explanatory hints"
+    for label in wrapped:
+        assert label.sizePolicy().hasHeightForWidth(), label.text()[:40]
+        assert label.minimumHeight() > 0, label.text()[:40]

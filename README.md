@@ -126,6 +126,21 @@ python tools/generate_catalogue.py --fetch
 python tools/generate_iptv_org_catalogue.py
 ```
 
+## Subtitles
+
+Whether a channel has subtitles you can control depends on how the broadcaster sends them.
+
+- **Sent as their own track** — WebVTT in HLS, or DVB subtitles in a transport stream. These can be
+  switched off, resized and moved. mpv turns one on by itself when the stream marks it as default,
+  which is why the switch matters: on Free-TV UK, GB News arrives with English subtitles already on.
+- **Burned into the picture** — part of the video, and no player setting can remove them.
+- **Absent** — BBC One and BBC Two on that playlist carry no subtitle track at all.
+
+Press **V** while watching to toggle, the same key mpv itself uses. **Preferences → Subtitles** has
+the switch plus size (0.5x–3x) and height, both applying immediately to what is playing. Size and
+height affect text subtitles; bitmap ones ignore them. **F2** lists what the current stream actually
+offers.
+
 ## Programme guide
 
 Hypnotix has no guide. It has an EPG box on the Add-provider form that saves what you type and

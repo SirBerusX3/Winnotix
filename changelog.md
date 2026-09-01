@@ -12,7 +12,38 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- **Subtitle controls** (`winnotix/ui/main_window.py`, Preferences → Subtitles, **V**). Neither
+  Winnotix nor upstream Hypnotix touched subtitles at all, which did not mean subtitles were off:
+  mpv selects a track a stream marks as default, so they were appearing with no way to turn them
+  off. Measured on the Free-TV UK playlist — GB News carries a WebVTT English track that mpv had
+  already selected, while BBC One and BBC Two carry no subtitle track at all.
+  - Three settings, applied when the player is created and live whenever they change:
+    `sub-visibility`, `sub-scale` (0.5x–3x) and `sub-pos`. The defaults are 1.0 and 100, which are
+    mpv's own, so they are a no-op until someone moves them.
+  - **The position slider stops at the bottom of the frame.** mpv's `sub-pos` accepts up to 150,
+    which puts the text below the picture where it cannot be seen; there is no reason to offer that.
+  - **V toggles, matching mpv's own binding**, and the Preferences checkbox is kept in step without
+    echoing the change back round. When a channel has no subtitle track the status bar says so,
+    rather than reporting "on" and appearing to do nothing.
+  - F2 now lists the subtitle tracks a stream offers, or "none in this stream".
+  - **Two honest limits, stated in the UI rather than discovered.** Subtitles burned into the
+    picture are video and nothing here affects them; and size and position apply to text subtitles,
+    not to bitmap DVB ones.
+  - The settings shim gains `get_double`/`set_double` and `get_int`/`set_int` — real
+    `Gio.Settings` method names, so it keeps its shape rather than growing a bespoke API.
+
+### Fixed
+
+- **Every explanatory hint on the Preferences page was clipped mid-sentence.** A word-wrapped
+  `QLabel` reports a size hint computed for a width it does not get, and a `QVBoxLayout` believes
+  it, so the last line or two of each explanation was cut off — the blocklist hint lost "add your
+  own rules…", the logo hint lost its off-switch sentence. Pre-existing; adding three more hints
+  made it obvious. Fixed in two parts, because the first was not enough: the size policy has to ask
+  for `heightForWidth` at all, and the measurement has to use the width the label really has, since
+  measuring against the column's maximum under-counts once margins are removed.
+
 
 ---
 

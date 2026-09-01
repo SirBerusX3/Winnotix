@@ -31,6 +31,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QScrollArea,
+    QSlider,
     QSizePolicy,
     QSplitter,
     QVBoxLayout,
@@ -870,6 +871,7 @@ class PreferencesPage(QScrollArea):
 
     setting_changed = Signal(str, str)
     bool_setting_changed = Signal(str, bool)
+    number_setting_changed = Signal(str, float)
     ytdlp_update_clicked = Signal()
 
     def __init__(self, settings, parent=None) -> None:
@@ -1026,6 +1028,55 @@ class PreferencesPage(QScrollArea):
         self.ytdlp_buttons = QWidget()
         self.ytdlp_buttons.setLayout(button_row)
 
+        subtitle_heading = QLabel("Subtitles")
+        subtitle_heading.setProperty("heading", "true")
+
+        self.subtitles_check = QCheckBox("Show subtitles when a stream carries them")
+        self.subtitles_check.setChecked(settings.get_boolean("subtitles-visible"))
+        self.subtitles_check.toggled.connect(
+            lambda checked: self.bool_setting_changed.emit("subtitles-visible", checked)
+        )
+        subtitle_hint = QLabel(
+            "Only subtitles the stream sends as their own track can be switched off "
+            "or moved — mpv turns those on by itself when the stream marks one as "
+            "default, which is why the switch exists. Subtitles burned into the "
+            "picture are part of the video and nothing here affects them, and size "
+            "and position apply to text subtitles rather than bitmap ones. Press V "
+            "while watching to toggle, and F2 to see what the current stream offers."
+        )
+        subtitle_hint.setWordWrap(True)
+        subtitle_hint.setProperty("dim", "true")
+
+        self.subtitle_scale = QSlider(Qt.Orientation.Horizontal)
+        self.subtitle_scale.setRange(50, 300)        # 0.5x to 3.0x
+        self.subtitle_scale.setSingleStep(5)
+        self.subtitle_scale.setPageStep(25)
+        self.subtitle_scale.setValue(int(settings.get_double("subtitle-scale") * 100))
+        self.subtitle_scale_label = QLabel()
+        self.subtitle_scale.valueChanged.connect(self._on_subtitle_scale)
+
+        # mpv's sub-pos is a percentage down the frame: 100 is the bottom edge,
+        # 0 the top, and above 100 pushes it off-screen -- so the range stops there.
+        self.subtitle_position = QSlider(Qt.Orientation.Horizontal)
+        self.subtitle_position.setRange(0, 100)
+        self.subtitle_position.setSingleStep(1)
+        self.subtitle_position.setPageStep(10)
+        self.subtitle_position.setValue(settings.get_int("subtitle-position"))
+        self.subtitle_position_label = QLabel()
+        self.subtitle_position.valueChanged.connect(self._on_subtitle_position)
+
+        subtitle_form = QFormLayout()
+        subtitle_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+        scale_row = QHBoxLayout()
+        scale_row.addWidget(self.subtitle_scale, 1)
+        scale_row.addWidget(self.subtitle_scale_label)
+        position_row = QHBoxLayout()
+        position_row.addWidget(self.subtitle_position, 1)
+        position_row.addWidget(self.subtitle_position_label)
+        subtitle_form.addRow("Size", scale_row)
+        subtitle_form.addRow("Height", position_row)
+        self._update_subtitle_labels()
+
         layout.addLayout(form)
         layout.addWidget(mpv_hint)
         layout.addSpacing(10)
@@ -1044,6 +1095,13 @@ class PreferencesPage(QScrollArea):
         layout.addWidget(adult_hint)
         layout.addSpacing(10)
         layout.addWidget(separator())
+        layout.addWidget(subtitle_heading)
+        layout.addWidget(self.subtitles_check)
+        layout.addWidget(subtitle_hint)
+        layout.addSpacing(6)
+        layout.addLayout(subtitle_form)
+        layout.addSpacing(10)
+        layout.addWidget(separator())
         layout.addWidget(logo_heading)
         layout.addWidget(self.logo_proxy_check)
         layout.addWidget(logo_hint)
@@ -1058,7 +1116,62 @@ class PreferencesPage(QScrollArea):
         layout.addWidget(self.ytdlp_local_check)
         layout.addWidget(self.ytdlp_buttons)
         layout.addStretch(1)
+
+        # A word-wrapped QLabel reports a sizeHint based on some notional width
+        # rather than the one it actually gets, and a QVBoxLayout believes it --
+        # so every hint on this page was clipped mid-sentence, losing the last
+        # line or two of each explanation. The policy is what makes the layout
+        # measure wrapped text at all; _fit_hints supplies the width to measure
+        # against, which is not known until the page has been laid out.
+        self._hints = []
+        for label in host.findChildren(QLabel):
+            if not label.wordWrap():
+                continue
+            policy = label.sizePolicy()
+            policy.setHeightForWidth(True)
+            label.setSizePolicy(policy)
+            label.setMinimumHeight(label.heightForWidth(FORM_WIDTH))
+            self._hints.append(label)
+
         self.setWidget(host)
+
+    def resizeEvent(self, event):    # noqa: N802 -- Qt's spelling
+        super().resizeEvent(event)
+        self._fit_hints()
+
+    def _fit_hints(self) -> None:
+        """Re-measure the wrapped hints against the width they really have.
+
+        Measuring against the column's maximum under-counts, because margins
+        make the column narrower than that -- which left the longest hints
+        clipped even after the size policy was corrected.
+        """
+        for label in getattr(self, "_hints", ()):
+            width = label.width()
+            if width > 0:
+                label.setMinimumHeight(label.heightForWidth(width))
+
+    # -- subtitles -----------------------------------------------------
+
+    def _update_subtitle_labels(self) -> None:
+        self.subtitle_scale_label.setText(f"{self.subtitle_scale.value() / 100:.2f}x")
+        value = self.subtitle_position.value()
+        where = "bottom" if value >= 100 else ("top" if value == 0 else f"{value}%")
+        self.subtitle_position_label.setText(where)
+
+    def _on_subtitle_scale(self, value: int) -> None:
+        self._update_subtitle_labels()
+        self.number_setting_changed.emit("subtitle-scale", value / 100)
+
+    def _on_subtitle_position(self, value: int) -> None:
+        self._update_subtitle_labels()
+        self.number_setting_changed.emit("subtitle-position", float(value))
+
+    def set_subtitles_visible(self, visible: bool) -> None:
+        """Reflect a toggle made elsewhere -- the V key -- without echoing it back."""
+        blocked = self.subtitles_check.blockSignals(True)
+        self.subtitles_check.setChecked(visible)
+        self.subtitles_check.blockSignals(blocked)
 
     # -- yt-dlp panel --------------------------------------------------
 
