@@ -42,6 +42,7 @@ Or double-click **`Winnotix.bat`**.
 | `python build.py setup` | Set up only, without launching |
 | `python build.py test` | Run the test suite (arguments pass through to pytest) |
 | `python build.py package` | Build the portable app into `dist/Winnotix`; `--zip` also writes `dist/Winnotix-portable.zip` |
+| `python build.py package --zip --allow-unsigned` | As above, for an archive that is not being distributed |
 | `python build.py doctor` | Report what is and is not ready |
 | `python build.py clean` | Remove caches; `--all` also removes `.venv` and libmpv |
 
@@ -52,6 +53,29 @@ If you already cloned without `--recursive`:
 ```powershell
 git submodule update --init
 ```
+
+## Signing a build for distribution
+
+PyInstaller output has a shape antivirus heuristics dislike — unsigned, self-extracting, bundling
+an interpreter — whatever it actually contains. So `package` treats the **archive** as the moment
+that matters: building `dist/Winnotix` unsigned is fine and prints a note, but `--zip` refuses
+unless something signed the executable, because the zip is the thing handed to someone else.
+
+Signing is configured with one environment variable holding a command template, `{path}` standing
+in for the executable:
+
+```powershell
+$env:WINNOTIX_SIGN_COMMAND = 'signtool sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 {path}'
+python build.py package --zip
+```
+
+A template rather than a fixed `signtool` call, because the routes worth considering take entirely
+different command lines: **SignPath Foundation** (free for open-source projects), **Azure Trusted
+Signing**, or a conventional **OV certificate** on a hardware token. A configured command that
+*fails* fails the build — a build that tried to sign and could not is exactly the one that must not
+quietly become a release.
+
+Pass `--allow-unsigned` for an archive you are not distributing.
 
 ## Layout
 

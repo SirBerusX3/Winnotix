@@ -380,7 +380,12 @@ rejected: embedding a real hardware-accelerated player is the app's whole purpos
 
 ## 11. Parked — worth doing, not yet scheduled
 
-### Code signing for the portable build
+### Code signing for the portable build — **hook built, certificate outstanding**
+
+> The `build.py package` half is done: `WINNOTIX_SIGN_COMMAND` holds a command template, a
+> configured command that fails fails the build, and `--zip` refuses to produce a distributable
+> from an unsigned build unless `--allow-unsigned` says so. So the remaining work is obtaining a
+> certificate, not writing code. The notes below stand as the shortlist for that.
 
 PyInstaller output has a shape antivirus heuristics dislike -- unsigned, self-extracting,
 bundling an interpreter -- regardless of what it contains. This is not hypothetical here:

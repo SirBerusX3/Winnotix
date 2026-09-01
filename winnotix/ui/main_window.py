@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
     QStackedWidget,
 )
 
+from .. import __version__
 from ..core import epg, genres, health, mpvloader, ytdlp
 from ..core.filters import Blocklist, FilterResult
 from ..core.genres import GenreIndex
@@ -1200,7 +1201,7 @@ class MainWindow(QMainWindow):
         QMessageBox.about(
             self,
             f"About {APP_NAME}",
-            f"<h3>{APP_NAME}</h3>"
+            f"<h3>{APP_NAME} {__version__}</h3>"
             "<p>An IPTV player for Windows.</p>"
             "<p>A port of <b>Hypnotix</b> by Linux Mint, licensed GPLv3. "
             "Playback by libmpv.</p>"

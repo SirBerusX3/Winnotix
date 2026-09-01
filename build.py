@@ -25,6 +25,7 @@ import argparse
 import hashlib
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -228,6 +229,54 @@ def cmd_test(args) -> int:
     ).returncode
 
 
+#: How signing is configured. A command template rather than a fixed signtool
+#: invocation, because the three routes worth considering -- SignPath's free
+#: tier for open source, Azure Trusted Signing, an OV certificate on a hardware
+#: token -- take entirely different command lines, and this project has none of
+#: them yet. `{path}` is substituted with the executable.
+SIGN_COMMAND_VAR = "WINNOTIX_SIGN_COMMAND"
+
+
+def sign_bundle(exe: Path) -> bool:
+    """Sign the built executable if a signing command is configured.
+
+    Returns whether it was signed. A configured command that *fails* is fatal:
+    a build that tried to sign and could not is exactly the one that must not
+    quietly become a release.
+    """
+    template = os.environ.get(SIGN_COMMAND_VAR, "").strip()
+    if not template:
+        return False
+    if "{path}" not in template:
+        raise Failure(
+            f"{SIGN_COMMAND_VAR} must contain {{path}}, which is replaced with "
+            f"the executable to sign.\n  Got: {template}"
+        )
+    step("Signing")
+    # posix=False, and the path substituted *after* splitting. shlex in its
+    # default POSIX mode treats a backslash as an escape, so it quietly turns
+    # a Windows path into one with the separators eaten -- and a signer handed
+    # that fails for a reason nothing in its output explains. Windows mode keeps
+    # the backslashes but leaves quotes attached to the token, so those are
+    # stripped here; that is what lets a signer whose own path contains spaces
+    # be quoted in the template.
+    command = []
+    for token in shlex.split(template, posix=False):
+        if len(token) >= 2 and token[0] == token[-1] and token[0] in "\"'":
+            token = token[1:-1]
+        command.append(token.replace("{path}", str(exe)))
+    try:
+        run(command, cwd=str(ROOT))
+    except FileNotFoundError:
+        raise Failure(
+            f"{SIGN_COMMAND_VAR} names a program that does not exist: {command[0]}"
+        ) from None
+    except subprocess.CalledProcessError as exc:
+        raise Failure(f"signing failed (exit {exc.returncode}): {template}") from None
+    say(f"signed with {command[0]}")
+    return True
+
+
 def cmd_package(args) -> int:
     setup()
 
@@ -284,7 +333,23 @@ def cmd_package(args) -> int:
         found = target.exists() and (not target.is_dir() or any(target.iterdir()))
         say(f"{label:<10} {'bundled' if found else 'MISSING — ' + str(probe)}")
 
+    signed = sign_bundle(exe)
+    if not signed:
+        say(f"unsigned    set {SIGN_COMMAND_VAR} to sign this build")
+
     if args.zip:
+        # The zip is the thing that gets handed to someone else, so this is
+        # where an unsigned build has to be a deliberate choice rather than an
+        # oversight. PyInstaller output already trips antivirus heuristics on
+        # shape alone -- unsigned, self-extracting, bundling an interpreter.
+        if not signed and not args.allow_unsigned:
+            raise Failure(
+                "refusing to build a distributable archive from an unsigned build.\n"
+                f"  Set {SIGN_COMMAND_VAR} to a signing command, for example:\n"
+                f"    $env:{SIGN_COMMAND_VAR} = 'signtool sign /fd SHA256"
+                " /tr http://timestamp.digicert.com /td SHA256 {path}'\n"
+                "  Or pass --allow-unsigned if this archive is not for distribution."
+            )
         step("Compressing")
         archive = shutil.make_archive(str(ROOT / "dist" / "Winnotix-portable"),
                                       "zip", root_dir=str(DIST.parent),
@@ -419,6 +484,8 @@ def main(argv: list[str] | None = None) -> int:
                                help="build the portable app into dist/Winnotix")
     p_package.add_argument("--zip", action="store_true",
                            help="also produce dist/Winnotix-portable.zip")
+    p_package.add_argument("--allow-unsigned", action="store_true",
+                           help="build the archive even though nothing signed it")
     p_package.set_defaults(func=cmd_package)
 
     sub.add_parser("doctor", help="report what is and is not ready").set_defaults(

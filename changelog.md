@@ -12,7 +12,35 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
 
 ## [Unreleased]
 
+Nothing yet.
+
+---
+
+## [0.1.0] - 2026-09-01
+
+First release. Everything below was built during the port; it is grouped as one
+version rather than invented history, because there was no earlier release to
+diff against.
+
 ### Added
+
+- **A signing step in `build.py package`, and a refusal to distribute without it.** Roadmap §11
+  asked for signing "as a step after COLLECT, so an unsigned build is never what gets distributed
+  by accident". The line drawn here is the **archive**, not the build: `dist/Winnotix` builds
+  unsigned with a note, and `--zip` refuses unless something signed the executable, because the zip
+  is what gets handed to someone else. `--allow-unsigned` covers an archive that is not for
+  distribution.
+  - Configured by `WINNOTIX_SIGN_COMMAND`, a command template with `{path}` for the executable — a
+    template rather than a fixed `signtool` call, because the three routes worth considering
+    (SignPath's free open-source tier, Azure Trusted Signing, an OV certificate on a hardware
+    token) take entirely different command lines, and this project has none of them yet.
+  - **A configured command that fails, fails the build.** A build that tried to sign and could not
+    is precisely the one that must not quietly become a release.
+  - **The path is substituted after splitting, and splitting uses `posix=False`.** `shlex` in its
+    default mode treats a backslash as an escape, so it silently turned a Windows path into one
+    with the separators eaten — a signer handed that fails for a reason nothing in its output
+    explains. Caught by a test, not by inspection.
+- **A version, shown in About** (`__version__`, 0.0.1 → 0.1.0).
 
 - **A channel check** (`winnotix/core/health.py`, menu → Check Channels, Ctrl+T). Until now a dead
   channel announced itself only by failing to play; `streamcheck` then explained why. This asks the
