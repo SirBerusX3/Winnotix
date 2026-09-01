@@ -148,6 +148,13 @@ distinguishes those, so Winnotix keeps a small blocklist in `resources/blocklist
 matching entries. It currently covers Pluto TV, which serves a takedown notice for every entry in
 the default playlist.
 
+Pluto needs two rules, not one. Free-TV links its stitcher directly, so a `.pluto.tv` host rule
+catches those — but iptv-org links through a redirector, `jmp2.uk`, and a host rule matches the URL
+as written rather than where it lands. That accounts for **2,342 of the 14,307 entries** in
+iptv-org's combined playlist; a sample of 60 resolved 59 to `stitcher-ipv4.pluto.tv` and none
+anywhere else, so the redirector is blocked by host too. Resolving thousands of URLs at load time to
+find this out would be far more expensive than naming the host.
+
 Turn it off in Preferences, or add your own rules in `blocklist.json` inside `%APPDATA%\Winnotix`:
 
 ```json

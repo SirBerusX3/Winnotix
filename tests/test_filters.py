@@ -17,6 +17,10 @@ PLUTO_URL = (
     "5ba3fb9c4b078e0f37ad34e8/master.m3u8?terminate=false"
 )
 
+# iptv-org routes every Pluto channel through this redirector rather than
+# linking the stitcher directly, so the .pluto.tv rule never sees the host.
+PLUTO_REDIRECT_URL = "https://jmp2.uk/plu-5ba3fb9c4b078e0f37ad34e8"
+
 
 @pytest.fixture
 def pluto_rule():
@@ -228,6 +232,26 @@ def test_shipped_blocklist_loads_and_covers_pluto(tmp_path):
         "https://service-stitcher.clusters.pluto.tv/v1/stitch/embed/hls/c/m.m3u8")
     assert blocklist.match(
         "https://cfd-v4-service-channel-stitcher-use1-1.prd.pluto.tv/x.m3u8")
+
+
+def test_shipped_blocklist_covers_the_pluto_redirector(tmp_path):
+    """iptv-org links Pluto through jmp2.uk, which the .pluto.tv rule misses.
+
+    2,342 of the 14,307 entries in index.country.m3u are this shape, so without
+    a rule for the redirector itself the largest bundled playlist ships 16%
+    takedown slates presented as ordinary channels.
+    """
+    blocklist = Blocklist.load(user=tmp_path / "no-user-rules.json")
+
+    matched = blocklist.match(PLUTO_REDIRECT_URL)
+    assert matched is not None
+    assert matched.id == "pluto-tv-redirector"
+
+    # The bare host is what the playlist actually carries.
+    assert blocklist.match("https://jmp2.uk/plu-abc123")
+    # Must not match by substring, the way ".pluto.tv" must not match notpluto.tv.
+    assert blocklist.match("https://notjmp2.uk/stream.m3u8") is None
+    assert blocklist.match("https://example.com/jmp2.uk/x.m3u8") is None
     # And nothing else.
     assert blocklist.match("https://tv.a2news.com/live/smil:x.smil/playlist.m3u8") is None
 

@@ -428,6 +428,23 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
 
 ### Fixed
 
+- **The Pluto TV blocklist missed every entry in the larger of the two bundled catalogues**
+  (`resources/blocklist.json`). The existing rule matches `host_suffix: ".pluto.tv"`, which is
+  how Free-TV links the stitcher — but iptv-org links through a redirector, `jmp2.uk`, and a host
+  rule sees the URL as written rather than where it lands. So the rule matched none of them.
+  - **2,342 of the 14,307 entries** in `index.country.m3u` are this shape — 16% of the playlist,
+    listed as ordinary channels and playing a takedown slate. A random sample of 60 resolved 59 to
+    `stitcher-ipv4.pluto.tv` and one to an HTTP error, none anywhere else, so the redirector is
+    Pluto's alone in this playlist and can be blocked by host.
+  - **Blocking the redirector rather than resolving it** is the whole point. Following 2,342
+    redirects at load time to discover what the URLs already imply would cost more than the feature
+    saves, and would put a network round trip in the parse path.
+  - The rule is separate from `pluto-tv-takedown` rather than folded into it, so that if Pluto
+    restores third-party access both can be retired together and the reason for each stays legible.
+  - Found while measuring iptv-org's channel categories for the Series routing work: 503 of the 689
+    channels it classifies as `series` are these, so the blocklist gap would have filled a new
+    Series page with takedown slates.
+
 - `QSvgRenderer.render()` was called without an explicit target rect in both `icons.py` and
   `pages.svg_pixmap`, so it used the SVG's default size and drew fragments in the corner at the
   wrong scale. Every icon and the landing artwork were affected.
