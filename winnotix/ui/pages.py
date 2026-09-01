@@ -307,7 +307,10 @@ class ChannelsPage(QWidget):
         self.splitter.addWidget(self.channel_list)
         self.splitter.addWidget(player)
         self.splitter.setStretchFactor(1, 1)
-        self.splitter.setSizes([250, 900])
+        # The sidebar carries two things once a guide is loaded -- the channel
+        # and what is on it now -- so it opens wider than the name alone needs.
+        # Still a splitter: anyone who wants the video wider can drag it back.
+        self.splitter.setSizes([340, 810])
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -935,6 +938,23 @@ class PreferencesPage(QScrollArea):
         route_hint.setWordWrap(True)
         route_hint.setProperty("dim", "true")
 
+        self.show_epg_check = QCheckBox("Show what is on now, where a guide is published")
+        self.show_epg_check.setChecked(settings.get_boolean("show-epg"))
+        self.show_epg_check.toggled.connect(
+            lambda checked: self.bool_setting_changed.emit("show-epg", checked)
+        )
+        epg_hint = QLabel(
+            "A playlist can name its own programme guides, and Free-TV's does. "
+            "Winnotix downloads only the guide for the country whose channels you "
+            "are looking at, and shows the current and next programme beside a "
+            "channel and while it plays. Coverage is partial and always will be: "
+            "guide and playlist name channels differently, and most niche streams "
+            "have no listings published at all. A channel with no match simply "
+            "shows nothing. Add a guide URL to a provider under Providers → Edit."
+        )
+        epg_hint.setWordWrap(True)
+        epg_hint.setProperty("dim", "true")
+
         hide_hint = QLabel(
             "Some streams answer normally but play a filler clip instead of the "
             "channel — a takedown notice or a “watch on our website” slate. These "
@@ -1016,6 +1036,9 @@ class PreferencesPage(QScrollArea):
         layout.addSpacing(6)
         layout.addWidget(self.route_genre_check)
         layout.addWidget(route_hint)
+        layout.addSpacing(6)
+        layout.addWidget(self.show_epg_check)
+        layout.addWidget(epg_hint)
         layout.addSpacing(6)
         layout.addWidget(self.hide_adult_check)
         layout.addWidget(adult_hint)

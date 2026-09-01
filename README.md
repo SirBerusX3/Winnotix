@@ -102,6 +102,31 @@ python tools/generate_catalogue.py --fetch
 python tools/generate_iptv_org_catalogue.py
 ```
 
+## Programme guide
+
+Hypnotix has no guide. It has an EPG box on the Add-provider form that saves what you type and
+never reads it. Winnotix reads it — and usually does not need it, because a playlist can name its
+own guides in its `#EXTM3U` header, and **Free-TV's names 101 of them**, one per country. So for
+the default provider the guide works with no configuration.
+
+What is on now appears beside each channel in the list, in the playback bar while a channel plays,
+and under **F2** with Now and Next. Hovering a channel shows both with their times.
+
+Only the guide for the country you are looking at is downloaded — one country is 2.6 MB against
+191 MB for the combined file — and it is cached for six hours.
+
+**Coverage is partial and always will be.** Guides and playlists identify channels differently:
+epgshare calls BBC One `BBC.One.West.HD.uk`, our playlists call it `BBCOne.uk`. Matching on id
+alone finds 4 of 55 channels on the Free-TV UK playlist; matching on the guide's display name finds
+36. In the app that comes out as **29 of 54 UK channels with listings**. The rest have no listings
+published anywhere, so they show nothing rather than an empty placeholder.
+
+iptv-org publishes no guides at all — its EPG project is a grabber you run yourself — so an
+iptv-org provider shows listings only if you paste a guide URL into **Providers → Edit**, where a
+comma-separated list is accepted.
+
+Turn it off in **Preferences → Playlists**.
+
 ## Film and drama channels
 
 For an M3U provider every group is a TV group — Hypnotix decides the type from the group *name*,

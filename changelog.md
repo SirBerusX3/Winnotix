@@ -14,6 +14,43 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
 
 ### Added
 
+- **A programme guide** (`winnotix/core/epg.py`, `ChannelList.apply_guide`, Preferences →
+  Playlists). Upstream Hypnotix has none — it stores a per-provider EPG URL, the sixth field of
+  the `:::` format and an entry box on the Add-provider form, and then never reads it. Someone
+  could type a guide URL into Hypnotix or into Winnotix and nothing whatsoever would happen. Now
+  the channel list shows what is on beside each channel, the playback bar shows it while a channel
+  plays, and F2 gains Now and Next rows.
+  - **Guides come from the playlist itself.** The M3U standard puts them in the header —
+    `#EXTM3U x-tvg-url="…"` — and Free-TV's declares **101 gzipped XMLTV files**, one per country.
+    So for the default provider this needs no configuration at all. A provider's own EPG field is
+    read too, and takes precedence, because for iptv-org it is the only possible source: iptv-org
+    declares no guides and publishes none, its `epg` repository being a grabber you run yourself
+    and its `guides.json` mapping channels to scraper *sites* rather than to XMLTV.
+  - **Only the country on screen is fetched.** The combined `ALL_SOURCES` guide is **191 MB
+    gzipped**; one country is 2.6 MB gz for 486 channels and 41,299 programmes, parsed in 1.6 s.
+    So guides load when a country's channel list is opened, and are cached on disk for six hours.
+    Programmes outside a −2h/+36h window are dropped while parsing, via `iterparse`, because only
+    now and next are ever shown and the file holds days.
+  - **Matching is partial, by nature rather than by defect.** Guide and playlist use unrelated id
+    schemes — epgshare says `BBC.One.West.HD.uk` where our playlists say `BBCOne.uk` — so an id
+    join matches **4 of 55** channels on Free-TV UK (7%) and **4 of 310** on iptv-org's UK group
+    (1%). Falling back to the guide's `display-name`, normalised for quality suffixes and playlist
+    noise like `(720p)` and `[Not 24/7]`, lifts those to **36/55 (65%)** and **55/310 (17%)**.
+    Measured in the running app: 29 of 54 rows on Free-TV UK. The rest genuinely have no listings
+    published, so they show nothing — a placeholder on every second row would be noise, not
+    information.
+  - **One alias decides whether the UK works at all.** Of the 64 two-letter codes across those 101
+    guides, exactly one is not ISO: `epg_ripper_UK1`, where ISO says `GB`. A group resolves to GB,
+    so without resolving that the country with the best coverage of any would silently get
+    nothing. Non-ISO codes are now resolved as names, where `UK → GB` already lived.
+  - The channel sidebar's default width goes from 250 to 340 px, since a row now carries a channel
+    *and* a programme. It is a splitter, so it can be dragged back.
+  - A stale cached guide is preferred to none when a fetch fails: a guide is days of listings, so
+    yesterday's copy is still largely right.
+  - On by default. The guides are named by the playlist the user already chose, so it is the same
+    trust boundary as its streams and its logos, and nothing is fetched until a channel list is
+    opened.
+
 - **The Movies and Series tiles fill up for an M3U provider** (`winnotix/core/genres.py`,
   `tools/generate_genres.py`, `resources/channel_genres.json`, Preferences → Playlists).
   For an M3U provider every group is a `TV_GROUP` — `Group.__init__` decides the type by looking

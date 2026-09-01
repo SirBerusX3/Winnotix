@@ -335,6 +335,40 @@ class ChannelList(QListWidget):
                 self._by_path.setdefault(channel.logo_path, []).append(item)
         self._request_visible_logos()
 
+    #: Between a channel name and what is on it now.
+    GUIDE_SEPARATOR = "   ·   "
+
+    def apply_guide(self, lookup) -> int:
+        """Show what is on now beside each row; returns how many matched.
+
+        `lookup` takes a channel and returns (current, next) programmes, either
+        of which may be None. A row with no listing is left exactly as it was:
+        a guide covers a fraction of a public playlist, so a placeholder on
+        every other row would be noise rather than information.
+
+        The name is rebuilt from the channel each time rather than appended to,
+        so refreshing on the hour cannot stack programmes onto a row.
+        """
+        matched = 0
+        for index in range(self.count()):
+            item = self.item(index)
+            channel = item.data(Qt.ItemDataRole.UserRole)
+            if channel is None:
+                continue
+            name = channel.name or "Unnamed channel"
+            current, following = lookup(channel)
+            if current is None:
+                item.setText(name)
+                item.setToolTip(name)
+                continue
+            matched += 1
+            item.setText(f"{name}{self.GUIDE_SEPARATOR}{current.title}")
+            tip = [name, f"Now    {current.when()}  {current.title}"]
+            if following is not None:
+                tip.append(f"Next   {following.when()}  {following.title}")
+            item.setToolTip("\n".join(tip))
+        return matched
+
     def visible_count(self) -> int:
         return sum(1 for i in range(self.count()) if not self.item(i).isHidden())
 

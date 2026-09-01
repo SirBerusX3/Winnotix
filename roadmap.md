@@ -229,7 +229,15 @@ Restore in descending order of value-per-unit-effort:
 
 **Done:** 1–9, plus the yt-dlp bootstrap (§7 #2) and visible playback-error feedback — pencilled in for Phase 5 polish, pulled
 forward because public playlists rot fast enough that a silent failure is a parity gap, not polish.
-**Still open:** 10 only, and the recommendation there is to drop it. Three corrections the work
+**Still open:** 10 only, and the recommendation there is to drop it.
+
+**One thing shipped that this list never contained: a programme guide.** It is not a parity item,
+because Hypnotix has none -- what it has is a per-provider EPG URL that saves and reloads and is
+never read (`common.py:75`, and an entry box on the Add-provider form). The guide is beyond parity
+rather than catching up, and it is deliberately partial: guides and playlists identify channels
+differently, so matching lands at 65% on the Free-TV UK playlist and 17% on iptv-org's UK group,
+and iptv-org publishes no guides at all. See the header of `winnotix/core/epg.py` for the
+measurements and why matching cannot do better. Three corrections the work
 forced:
 
 - **Item 5 badly under-read the Xtream half.** "`xtream.py` already supplies the data" is true of the

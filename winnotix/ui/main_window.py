@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
     QStackedWidget,
 )
 
-from ..core import genres, mpvloader, ytdlp
+from ..core import epg, genres, mpvloader, ytdlp
 from ..core.filters import Blocklist, FilterResult
 from ..core.genres import GenreIndex
 from ..core.common import (
@@ -74,6 +74,7 @@ class MainWindow(QMainWindow):
     series_loaded = Signal(object, bool, str)
     playback_failed = Signal(object, str)
     stream_diagnosed = Signal(object, str)
+    guides_loaded = Signal(str, object)   # country code, list[Guide]
 
     def __init__(self) -> None:
         super().__init__()
@@ -97,6 +98,11 @@ class MainWindow(QMainWindow):
         self.logo_cache.purge_cached_refusals()
         self.blocklist = Blocklist.load()
         self.genres = GenreIndex.load()
+        self.epg_store = epg.EpgStore(
+            user_agent=self.settings.get_string("user-agent") or "winnotix")
+        self.epg_urls: list[str] = []       # guides this provider declares
+        self.epg_guides: list = []          # parsed guides for the open country
+        self.epg_country: str | None = None
 
         # State, mirroring upstream's MainWindow attributes.
         self.providers: list[Provider] = []
@@ -237,6 +243,7 @@ class MainWindow(QMainWindow):
         self.header.add_menu_action("Quit", "exit", "Ctrl+Q", self.close)
 
         self.provider_loaded.connect(self._on_provider_loaded)
+        self.guides_loaded.connect(self._on_guides_loaded)
         self.series_loaded.connect(self._on_series_loaded)
         self.playback_failed.connect(self._on_playback_failed)
         self.stream_diagnosed.connect(self._on_stream_diagnosed)
@@ -468,6 +475,9 @@ class MainWindow(QMainWindow):
             self.status.set_status(f"{provider.name}: {message}")
             return
         self.settings.set_string("active-provider", provider.name)
+        self.epg_urls = epg.guide_urls(provider.path, provider)
+        self.epg_guides = []
+        self.epg_country = None
         self.navigate_to(LANDING)
         summary = (
             f"{provider.name}: {len(provider.channels)} channels, "
@@ -604,6 +614,70 @@ class MainWindow(QMainWindow):
         self.channels.channel_list.set_channels(channels)
         self.navigate_to(CHANNELS, favorites=favorites)
         self.status.set_status(f"{self.channels.channel_list.count()} channels")
+        self._maybe_load_guides()
+
+    # -- programme guide -----------------------------------------------
+
+    def _maybe_load_guides(self) -> None:
+        """Fetch the guide for the country now on screen, if there is one.
+
+        Per country, and only on demand: the combined guide is 191 MB gzipped
+        while one country is 2.6 MB, so fetching everything up front would cost
+        far more than it could ever show.
+        """
+        if not self.settings.get_boolean("show-epg") or not self.epg_urls:
+            return
+        code = epg.country_for_group(self.active_group)
+        if code is None or code == self.epg_country:
+            self._apply_guides()
+            return
+        if not epg.urls_for_country(self.epg_urls, code):
+            self.epg_country, self.epg_guides = code, []
+            return
+        self.epg_country = code
+        self.epg_guides = []
+        self._fetch_guides(code, list(self.epg_urls))
+
+    @async_function
+    def _fetch_guides(self, code: str, urls) -> None:
+        """Worker thread: download and parse. Must not touch widgets."""
+        try:
+            guides = self.epg_store.load_for(urls, code)
+        except Exception as exc:   # a bad guide must not kill the thread
+            print(f"[winnotix] guide load failed for {code}: {exc}")
+            guides = []
+        self.guides_loaded.emit(code, guides)
+
+    def _on_guides_loaded(self, code: str, guides) -> None:
+        if code != self.epg_country:
+            return          # the user moved to another country while it loaded
+        self.epg_guides = guides
+        self._apply_guides()
+
+    def _apply_guides(self) -> None:
+        """Put now/next on the visible rows, and on whatever is playing."""
+        if not self.epg_guides:
+            return
+        matched = self.channels.channel_list.apply_guide(
+            lambda channel: self.epg_store.now_next(self.epg_guides, channel))
+        if matched:
+            self.status.set_status(
+                f"{self.channels.channel_list.count()} channels — "
+                f"listings for {matched}")
+        if self.active_channel is not None:
+            self._show_playing_with_guide(self.active_channel)
+
+    def _now_next(self, channel):
+        if not self.epg_guides or not self.settings.get_boolean("show-epg"):
+            return None, None
+        return self.epg_store.now_next(self.epg_guides, channel)
+
+    def _show_playing_with_guide(self, channel) -> None:
+        current, _following = self._now_next(channel)
+        if current is None:
+            self.status.set_playing(channel.name)
+            return
+        self.status.set_playing(f"{channel.name} — {current.when()}  {current.title}")
 
     def on_vod_item_clicked(self, item) -> None:
         if self.content_type != SERIES_GROUP or not isinstance(item, Serie):
@@ -822,6 +896,7 @@ class MainWindow(QMainWindow):
         self.info_action.setEnabled(True)
         self.channels.clear_message()
         self.status.set_status(f"Playing {channel.name}")
+        self._show_playing_with_guide(channel)
         try:
             self.mpv.play(channel.url)
         except Exception as exc:
@@ -923,6 +998,14 @@ class MainWindow(QMainWindow):
                 "Logos will only be fetched from the address in the playlist."
             )
             return
+        if key == "show-epg":
+            self.epg_country = None
+            self.epg_guides = []
+            if value:
+                self._maybe_load_guides()
+            elif self.active_channel is not None:
+                self.status.set_playing(self.active_channel.name)
+            return
         if key in ("hide-unplayable", "route-by-genre") and self.active_provider is not None:
             # Filtering happens during load, so the change needs a reload to
             # take effect -- and a reload is cheap, the playlist is cached.
@@ -1023,6 +1106,11 @@ class MainWindow(QMainWindow):
             ("Channel", self.active_channel.name),
             ("URL", self.active_channel.url),
         ]
+        current, following = self._now_next(self.active_channel)
+        if current is not None:
+            fields.append(("Now", f"{current.when()}  {current.title}"))
+        if following is not None:
+            fields.append(("Next", f"{following.when()}  {following.title}"))
         for label, prop in (
             ("Resolution", "video-params/w"),
             ("Video codec", "video-format"),

@@ -45,12 +45,16 @@ DEFAULTS: dict[str, Any] = {
     # published in, which is a visible change to a playlist the user chose.
     # See core/genres.py.
     "route-by-genre": False,
+    # On by default: guides are named by the playlist itself, so this is the
+    # same trust boundary as its streams and logos, and nothing is fetched
+    # until a country's channel list is opened. See core/epg.py.
+    "show-epg": True,
 }
 
 # Keys upstream's org.x.hypnotix schema does not have. Kept separate so the
 # tests can still assert we have not drifted from upstream on the shared ones.
 WINNOTIX_KEYS = {"hide-unplayable", "hide-adult-content", "proxy-blocked-logos",
-                 "route-by-genre"}
+                 "route-by-genre", "show-epg"}
 UPSTREAM_KEYS = set(DEFAULTS) - WINNOTIX_KEYS
 
 

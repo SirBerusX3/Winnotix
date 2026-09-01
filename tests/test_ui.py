@@ -438,3 +438,74 @@ def test_we_no_longer_ship_hypnotix_own_logo():
     ours = resources_dir() / "generic_tv_logo.png"
     assert (hashlib.sha256(ours.read_bytes()).hexdigest()
             != hashlib.sha256(upstream.read_bytes()).hexdigest())
+
+
+def test_the_channel_list_shows_what_is_on_now(qapp):
+    """Rows the guide covers gain the programme; rows it does not are untouched."""
+    from datetime import datetime, timezone
+
+    from tests.conftest import FakeSettings
+    from winnotix.core.epg import Guide
+    from winnotix.ui.logos import LogoCache
+    from winnotix.ui.theme import current_palette
+    from winnotix.ui.widgets import ChannelList
+
+    xml = (
+        '<tv><channel id="Channel.5.uk"><display-name>Channel 5</display-name>'
+        "</channel>"
+        '<programme start="20260901173000 +0000" stop="20260901182500 +0000"'
+        ' channel="Channel.5.uk"><title>5 News</title></programme>'
+        '<programme start="20260901182500 +0000" stop="20260901190000 +0000"'
+        ' channel="Channel.5.uk"><title>Car Pound Cops</title></programme></tv>'
+    ).encode()
+    now = datetime(2026, 9, 1, 18, 0, tzinfo=timezone.utc)
+    guide = Guide.parse(xml, now=now)
+
+    class Ch:
+        def __init__(self, name, url, id=None):
+            self.name, self.url, self.id = name, url, id
+            self.logo = self.logo_path = None
+
+    listed = [Ch("Channel 5", "http://x/1"), Ch("Some Niche Stream", "http://x/2")]
+    widget = ChannelList(LogoCache(FakeSettings()), current_palette())
+    widget.set_channels(listed)
+
+    matched = widget.apply_guide(lambda c: guide.now_next(c, now))
+
+    assert matched == 1
+    assert widget.item(0).text() == f"Channel 5{ChannelList.GUIDE_SEPARATOR}5 News"
+    assert "Car Pound Cops" in widget.item(0).toolTip()
+    # No listing means no marker at all, rather than a placeholder on every row.
+    assert widget.item(1).text() == "Some Niche Stream"
+    assert widget.item(1).toolTip() == "Some Niche Stream"
+
+
+def test_reapplying_a_guide_does_not_stack_programmes_onto_a_row(qapp):
+    """The row is rebuilt from the channel, so refreshing on the hour is safe."""
+    from datetime import datetime, timezone
+
+    from tests.conftest import FakeSettings
+    from winnotix.core.epg import Guide
+    from winnotix.ui.logos import LogoCache
+    from winnotix.ui.theme import current_palette
+    from winnotix.ui.widgets import ChannelList
+
+    xml = (
+        '<tv><channel id="C.uk"><display-name>Five</display-name></channel>'
+        '<programme start="20260901173000 +0000" stop="20260901190000 +0000"'
+        ' channel="C.uk"><title>News</title></programme></tv>'
+    ).encode()
+    now = datetime(2026, 9, 1, 18, 0, tzinfo=timezone.utc)
+    guide = Guide.parse(xml, now=now)
+
+    class Ch:
+        def __init__(self):
+            self.name, self.url, self.id = "Five", "http://x/1", None
+            self.logo = self.logo_path = None
+
+    widget = ChannelList(LogoCache(FakeSettings()), current_palette())
+    widget.set_channels([Ch()])
+    widget.apply_guide(lambda c: guide.now_next(c, now))
+    widget.apply_guide(lambda c: guide.now_next(c, now))
+
+    assert widget.item(0).text().count("News") == 1
