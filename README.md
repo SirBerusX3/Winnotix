@@ -3,11 +3,12 @@
 An IPTV player for Windows — a port of [Hypnotix](https://github.com/linuxmint/hypnotix), the Linux
 Mint IPTV app, rebuilt on PySide6 with libmpv for playback.
 
-**Status: Phase 2 complete, Phase 3 well under way.** libmpv renders live IPTV inside a PySide6
-window with hardware decoding, the upstream playlist/provider backend runs on Windows, and the UI is
-rebuilt: categories, channels, VOD, series, favourites, search, provider management and both M3U and
-Xtream providers. Still to come: yt-dlp bootstrapping and packaging. See [roadmap.md](roadmap.md)
-for the plan and [changelog.md](changelog.md) for what has actually been done.
+**Status: phases 0–4 complete.** libmpv renders live IPTV inside a PySide6 window with hardware
+decoding, the upstream playlist/provider backend runs on Windows, and the UI is rebuilt: categories,
+channels, VOD, series, favourites, search, provider management and both M3U and Xtream providers.
+yt-dlp downloads on demand from Preferences, and `python build.py package` produces a portable
+one-folder app. The one deliberate omission is translation — the reasoning is in
+[roadmap.md](roadmap.md) §5. See [changelog.md](changelog.md) for what has actually been done.
 
 ## Why
 
@@ -19,10 +20,13 @@ shell is tied to Linux. Winnotix keeps the former and replaces the latter.
 Requires Python 3.12+ (developed on 3.14) and 7-Zip (only to unpack libmpv).
 
 ```powershell
-git clone --recursive <this repo>
+git clone --recursive https://github.com/SirBerusX3/Winnotix.git
 cd Winnotix
 python build.py
 ```
+
+The `--recursive` matters: `hypnotix/` is a submodule holding the upstream reference tree, and a
+plain clone leaves it empty.
 
 That is the whole thing. `build.py` creates the virtualenv, installs
 dependencies, downloads libmpv if it is missing, and launches the app. Every
@@ -37,6 +41,7 @@ Or double-click **`Winnotix.bat`**.
 | `python build.py` | Set up anything missing, then launch |
 | `python build.py setup` | Set up only, without launching |
 | `python build.py test` | Run the test suite (arguments pass through to pytest) |
+| `python build.py package` | Build the portable app into `dist/Winnotix`; `--zip` also writes `dist/Winnotix-portable.zip` |
 | `python build.py doctor` | Report what is and is not ready |
 | `python build.py clean` | Remove caches; `--all` also removes `.venv` and libmpv |
 
@@ -153,6 +158,22 @@ Turn it off in Preferences, or add your own rules in `blocklist.json` inside `%A
 
 A rule needs an `id` and a `reason`, plus `host_suffix` and/or `url_regex`. Reusing a built-in `id`
 replaces that rule — set `"enabled": false` to switch one off.
+
+## Channel logos
+
+imgur withdrew from the United Kingdom in September 2025 and now serves a "not viewable in your
+region" image to UK addresses — with HTTP 200 and a valid `Content-Type`, so nothing about the
+response says it is a refusal. That is not a long-tail problem for an IPTV client: imgur hosts 71%
+of Free-TV's channel logos and 54% of iptv-org's, so a UK user sees a placeholder on most of the app,
+and each refusal gets cached as though it were the real logo.
+
+Winnotix recognises that image by content hash and retries the same URL through DuckDuckGo's image
+proxy, which fetches it from outside the blocked region. **The direct fetch is always tried first**,
+so outside an affected region no third party is ever contacted, and only the logo's address is ever
+sent. Only refusals are retried — a 404 means the image is genuinely gone and is left alone.
+
+Turn it off in **Preferences → Channel logos** if you would rather Winnotix talked to nobody but the
+playlist's own hosts. Caches written before this existed are cleaned once at startup.
 
 ## Licence
 
