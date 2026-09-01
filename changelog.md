@@ -595,6 +595,28 @@ a deliberate decision rather than passing silently.
 
 ### Investigated, no change needed
 
+- **A blocklist audit across both bundled catalogues found nothing new to block.** 16,351 stream
+  URLs resolve to 5,185 distinct hosts. The 39 busiest were probed — one channel each, following
+  redirects and one HLS variant down to real segment names, looking for the signatures filler
+  streams carry: `takedown`, `slate`, `barker`, `advert`, `placeholder`, `geo-block`, `offline`
+  and the like.
+  - **Only `service-stitcher.clusters.pluto.tv` matched** — `advert`, `slate`, `takedown` — and it
+    is already covered, along with the `jmp2.uk` redirector that fronts it. The probe re-confirmed
+    that redirect independently.
+  - `jmp2.uk` turns out to carry **5 Free-TV entries as well as 2,342 iptv-org ones**, so that
+    rule was doing more than the commit that added it claimed.
+  - `www.youtube.com` is the third-busiest host at 133 Free-TV channels. Those are live YouTube
+    streams, which need yt-dlp rather than blocking, and Winnotix ships that.
+  - **This is the expected outcome, not a failed search.** Filler that names its own segments can
+    be found automatically and has been; filler that does not is indistinguishable from a working
+    stream by construction, which is why the blocklist is a curated data file rather than a
+    detector. The audit is worth repeating when a catalogue changes, so the script's approach is
+    recorded here rather than the result being taken as permanent.
+  - **What the probe did surface is rot, not filler:** 12 of the 39 busiest hosts failed outright
+    on the sampled channel — five 403, two 404, five connection errors. A 403 can be geo-blocking
+    rather than death, and one sample does not condemn a host, but it is a useful measure of how
+    much of a public playlist is already gone.
+
 - **The HTML in mpv's "Failed to open" error is not in the playlist, and ITV 1 is simply dead.**
   Playing ITV 1 produced
   `Failed to open http://45.14.84.37/itv1/<ADDRESS><A HREF="http://www.acme.com/software/micro_httpd/">micro_httpd</A></ADDRESS>`,
