@@ -102,6 +102,36 @@ python tools/generate_catalogue.py --fetch
 python tools/generate_iptv_org_catalogue.py
 ```
 
+## Film and drama channels
+
+For an M3U provider every group is a TV group — Hypnotix decides the type from the group *name*,
+looking for the words "VOD" and "SERIES", and a country-grouped playlist has neither. So the landing
+page's **Movies** and **Series** tiles sit empty however much film and drama the playlist carries.
+
+**Preferences → Playlists → Sort film and drama channels** fills them, using iptv-org's per-channel
+classification joined on the `tvg-id` the playlist already carries. On the bundled iptv-org
+catalogue that is **574 channels into Movies across 79 countries and 158 into Series across 37**,
+laid out as country tiles exactly like TV Channels.
+
+It is a **genre** sort, and worth knowing what that means before turning it on:
+
+- **Series holds two unlike things.** Channels that loop a single show — Baywatch, Cops, Degrassi —
+  sit beside ordinary drama channels like BBC Drama, AXN Asia and Fox Life. iptv-org records what a
+  channel *shows*; nothing in its data marks a single-show channel, so the two cannot be separated.
+- **Movies means film channels, not a film library.** AMC, Nova Cinema, Cinecanal. For an Xtream
+  provider the same tile is a real video-on-demand library, which is a different thing.
+- **Channels move rather than being copied**, so a sorted channel leaves its country list under TV
+  Channels. That is why the setting is off by default.
+- **Ambiguous channels are left alone** — 138 channels are tagged both series and movies, and those
+  stay where the playlist put them.
+- Free-TV gains almost nothing: only 9 of its 2,053 entries classify as series and 30 as movies.
+
+The index is generated, not hand-maintained — re-run it when iptv-org reclassifies:
+
+```powershell
+python tools/generate_genres.py
+```
+
 ## Xtream providers
 
 **Providers → Add** and pick *Xtream API*. The server URL is the panel root — `http://host:8080` —

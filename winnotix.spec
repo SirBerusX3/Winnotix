@@ -38,7 +38,8 @@ if not binaries:
     )
 
 # The whole resources tree: flags, category art, badges, the catalogues,
-# countries.list, blocklist.json, the app icon and the logo placeholder.
+# countries.list, blocklist.json, channel_genres.json, the app icon and the
+# logo placeholder.
 datas = [(str(ROOT / "resources"), "resources")]
 
 # Qt ships far more than this app uses. Excluding the large unused modules is

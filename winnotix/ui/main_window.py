@@ -23,8 +23,9 @@ from PySide6.QtWidgets import (
     QStackedWidget,
 )
 
-from ..core import mpvloader, ytdlp
+from ..core import genres, mpvloader, ytdlp
 from ..core.filters import Blocklist, FilterResult
+from ..core.genres import GenreIndex
 from ..core.common import (
     MOVIES_GROUP,
     SERIES_GROUP,
@@ -32,6 +33,7 @@ from ..core.common import (
     Channel,
     Manager,
     Provider,
+    Serie,
     async_function,
     idle_function,
 )
@@ -94,6 +96,7 @@ class MainWindow(QMainWindow):
         # re-fetched. Clear them once, in the background.
         self.logo_cache.purge_cached_refusals()
         self.blocklist = Blocklist.load()
+        self.genres = GenreIndex.load()
 
         # State, mirroring upstream's MainWindow attributes.
         self.providers: list[Provider] = []
@@ -420,6 +423,10 @@ class MainWindow(QMainWindow):
             filtered = FilterResult()
             if self.settings.get_boolean("hide-unplayable"):
                 filtered = self.blocklist.apply(provider)
+            # After the blocklist, never before: most of what iptv-org
+            # classifies as series is Pluto TV, which the blocklist removes.
+            if self.settings.get_boolean("route-by-genre"):
+                self.genres.route(provider)
         except Exception as exc:
             self.provider_loaded.emit(provider, False, str(exc), FilterResult())
             return
@@ -464,7 +471,7 @@ class MainWindow(QMainWindow):
         self.navigate_to(LANDING)
         summary = (
             f"{provider.name}: {len(provider.channels)} channels, "
-            f"{len(provider.movies)} movies, {len(provider.series)} series"
+            f"{len(provider.movies)} movies, {genres.series_total(provider)} series"
         )
         if filtered.removed:
             summary += f" — {filtered.summary()}"
@@ -583,7 +590,11 @@ class MainWindow(QMainWindow):
             self.vod.show_items(movies)
             self.navigate_to(VOD)
         else:
-            series = group.series if group else provider.series
+            if group is not None:
+                # A routed group holds Channels; a real one holds Serie objects.
+                series = group.series or group.channels
+            else:
+                series = provider.series or genres.series_channels(provider)
             self.vod.show_items(series)
             self.navigate_to(VOD)
 
@@ -595,7 +606,10 @@ class MainWindow(QMainWindow):
         self.status.set_status(f"{self.channels.channel_list.count()} channels")
 
     def on_vod_item_clicked(self, item) -> None:
-        if self.content_type != SERIES_GROUP:
+        if self.content_type != SERIES_GROUP or not isinstance(item, Serie):
+            # A genre-routed channel reaches the Series grid as a Channel: it
+            # loops one show or carries a drama schedule, and has no episode
+            # list to open, so it plays like any other channel.
             self.on_channel_activated(item)
             return
         self.active_serie = item
@@ -909,7 +923,7 @@ class MainWindow(QMainWindow):
                 "Logos will only be fetched from the address in the playlist."
             )
             return
-        if key == "hide-unplayable" and self.active_provider is not None:
+        if key in ("hide-unplayable", "route-by-genre") and self.active_provider is not None:
             # Filtering happens during load, so the change needs a reload to
             # take effect -- and a reload is cheap, the playlist is cached.
             self.status.set_status("Reloading the playlist to apply the change…")

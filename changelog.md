@@ -14,6 +14,45 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
 
 ### Added
 
+- **The Movies and Series tiles fill up for an M3U provider** (`winnotix/core/genres.py`,
+  `tools/generate_genres.py`, `resources/channel_genres.json`, Preferences → Playlists).
+  For an M3U provider every group is a `TV_GROUP` — `Group.__init__` decides the type by looking
+  for the words "VOD" and "SERIES" in the group name (`common.py:88-95`), and a country-grouped
+  playlist never has them — so both tiles were permanently empty however much film and drama the
+  playlist carried. iptv-org classifies its channels by the same `tvg-id` our playlists already
+  parse, which is enough to fill them. Measured on the bundled iptv-org catalogue: **574 channels
+  to Movies across 79 countries, 158 to Series across 37**, laid out as country tiles exactly like
+  TV Channels.
+  - **The roadmap's premise for this was wrong, and §11 is corrected.** It assumed iptv-org's
+    `categories` would identify a channel looping a single show. It does not: `categories` is a
+    *genre* taxonomy, and no field in the record marks a single-show channel — the shape is `id`,
+    `name`, `alt_names`, `network`, `owners`, `country`, `categories`, `is_nsfw`, `launched`,
+    `closed`, `replaced_by`, `website`. So the series set mixes Baywatch, Cops and Degrassi with
+    AXN Asia, BBC Drama and Fox Life, and the movies set is linear film channels — AMC, Nova
+    Cinema, Cinecanal — not a video-on-demand library. What shipped is a genre browse, and the
+    Preferences text says so rather than promising single shows.
+  - **The join needs the ids normalised, and this is not cosmetic.** iptv-org's published
+    playlists append a feed suffix — `BBCOne.uk@SD` — while its API keys on the bare `BBCOne.uk`.
+    Joined raw, **1 of 12,358** entries matches; normalised first, **12,336**. It happens in
+    `genres.py` rather than `common.py:141` so the parser stays at its five documented deviations
+    from upstream.
+  - **Routing runs after the blocklist, never before.** 503 of the 689 channels iptv-org
+    classifies as series were Pluto TV behind the `jmp2.uk` redirector, so the other order would
+    have filled a brand-new page with takedown slates. Fixing that gap is what the entry below is.
+  - **Channels tagged both series and movies are skipped** — 138 of 2,572, AXN White next to
+    Battlestar Galactica. Routing *moves* a channel out of its country list, so it only happens
+    where the classification is unambiguous and the conservative failure is that a channel stays
+    where it already was.
+  - A routed channel reaches the Series grid as a `Channel`, not a `Serie`, because it has no
+    seasons or episodes to open — so it plays on click like any other channel, and it is counted
+    from its group rather than pushed into `provider.series`, which would break every consumer
+    expecting `.seasons`/`.episodes`, `Blocklist.apply` included.
+  - **Off by default**, unlike the other two Winnotix settings, because it moves channels out of
+    the country lists the playlist published them in — a visible change to a playlist the user
+    chose. Toggling it reloads from the cached copy, so it takes effect without a restart.
+  - `route()` is idempotent: the groups it creates are flagged and never re-examined, so a second
+    pass cannot cascade.
+
 - **Flags that a Windows checkout had quietly broken** (`winnotix/core/countries.py`,
   `tools/repair_flags.py`). Upstream circle-flags uses **symlinks** for codes that
   share another country's flag — `uk` → `gb`, `sj` → `no`, 17 in all. Git on Windows

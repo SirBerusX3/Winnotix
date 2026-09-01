@@ -397,7 +397,14 @@ leads rather than facts:
 Whichever route, signing belongs in `build.py package` as a step after COLLECT, so an
 unsigned build is never what gets distributed by accident.
 
-### Route single-series channels into the Series category
+### Route single-series channels into the Series category — **done, with the premise corrected**
+
+> **Shipped as a genre sort, not a single-show sort.** The section below assumed iptv-org's
+> per-channel categories would identify a channel looping one show. They do not — `categories` is a
+> genre taxonomy, and nothing in the record marks a single-show channel. See `core/genres.py` and
+> the changelog entry. What shipped moves 574 channels to Movies and 158 to Series on the bundled
+> iptv-org catalogue, grouped by country, behind a Preferences switch that is off by default.
+> The two open questions at the end of this section are answered underneath it.
 
 For an M3U provider every group is a `TV_GROUP`, so the landing page's **Movies** and
 **Series** tiles are permanently empty — those two only ever fill from an Xtream provider,
@@ -426,6 +433,18 @@ through iptv-org's ids, which most of them carry.
 Open questions worth settling before starting: whether a "series" channel showing one
 show on a loop should present as a series at all when there are no episodes to pick from,
 and what the Movies tile does with a channel that is a 24/7 film rotation.
+
+**Both answered by the code rather than by argument.** The `SERIES_GROUP` path drills into
+`group.series` and opens seasons and episodes; the `MOVIES_GROUP` path is a poster grid that plays
+on click. A channel has nothing to drill into, so both routed sets use the grid, and a routed item
+arriving on the Series page is played rather than opened. A 24/7 film rotation is simply a channel
+that shows films, which is what the Movies tile now means for an M3U provider — it is a genre
+browse there and a VOD library for an Xtream provider, and the Preferences text draws that line.
+
+**One thing the work found that this section did not anticipate.** Free-TV publishes no categories,
+which was expected — but matching its channels through iptv-org's ids does not rescue it either:
+only 9 of its 2,053 entries classify as series and 30 as movies. This is an iptv-org feature, and
+the default provider gains almost nothing from it.
 
 ## Appendix A — What changed from revision 1
 

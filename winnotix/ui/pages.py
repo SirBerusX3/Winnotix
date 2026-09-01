@@ -37,7 +37,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ..core import catalogue, countries
+from ..core import catalogue, countries, genres
 from ..core.common import MOVIES_GROUP, SERIES_GROUP, TV_GROUP
 from ..core.paths import resources_dir
 from . import icons
@@ -185,7 +185,8 @@ class LandingPage(QWidget):
             counts = (0, 0, 0)
         else:
             self.provider_label.setText(provider.name)
-            counts = (len(provider.channels), len(provider.movies), len(provider.series))
+            counts = (len(provider.channels), len(provider.movies),
+                      genres.series_total(provider))
 
         for button, text, count in (
             (self.tv_button, "TV Channels", counts[0]),
@@ -213,7 +214,10 @@ class CategoriesPage(FlowPage):
             elif content_type == MOVIES_GROUP:
                 label, count = _remove_word("VOD", group.name), len(group.channels)
             else:
-                label, count = _remove_word("SERIES", group.name), len(group.series)
+                # A routed group holds Channels, not Serie objects -- see
+                # core/genres.py for why they are not pushed into provider.series.
+                label = _remove_word("SERIES", group.name)
+                count = len(group.series) or len(group.channels)
             tile = Tile(
                 label,
                 count,
@@ -902,6 +906,23 @@ class PreferencesPage(QScrollArea):
         self.hide_unplayable_check.toggled.connect(
             lambda checked: self.bool_setting_changed.emit("hide-unplayable", checked)
         )
+        self.route_genre_check = QCheckBox("Sort film and drama channels into Movies and Series")
+        self.route_genre_check.setChecked(settings.get_boolean("route-by-genre"))
+        self.route_genre_check.toggled.connect(
+            lambda checked: self.bool_setting_changed.emit("route-by-genre", checked)
+        )
+        route_hint = QLabel(
+            "A country-grouped playlist puts everything under TV Channels, so the "
+            "Movies and Series tiles stay empty. This sorts channels iptv-org "
+            "classifies as film or drama into them, still grouped by country. It is "
+            "a genre sort, not a list of single shows: Series holds channels like "
+            "BBC Drama alongside ones that loop a single show, and Movies holds film "
+            "channels rather than a video library. Channels it moves leave their "
+            "country list under TV Channels."
+        )
+        route_hint.setWordWrap(True)
+        route_hint.setProperty("dim", "true")
+
         hide_hint = QLabel(
             "Some streams answer normally but play a filler clip instead of the "
             "channel — a takedown notice or a “watch on our website” slate. These "
@@ -980,6 +1001,9 @@ class PreferencesPage(QScrollArea):
         layout.addWidget(playlist_heading)
         layout.addWidget(self.hide_unplayable_check)
         layout.addWidget(hide_hint)
+        layout.addSpacing(6)
+        layout.addWidget(self.route_genre_check)
+        layout.addWidget(route_hint)
         layout.addSpacing(6)
         layout.addWidget(self.hide_adult_check)
         layout.addWidget(adult_hint)

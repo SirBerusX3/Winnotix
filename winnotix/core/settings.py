@@ -41,11 +41,16 @@ DEFAULTS: dict[str, Any] = {
     # is only ever reached after a host has refused a direct request. See
     # core/logoproxy.py.
     "proxy-blocked-logos": True,
+    # Off by default: it moves channels out of the country lists they were
+    # published in, which is a visible change to a playlist the user chose.
+    # See core/genres.py.
+    "route-by-genre": False,
 }
 
 # Keys upstream's org.x.hypnotix schema does not have. Kept separate so the
 # tests can still assert we have not drifted from upstream on the shared ones.
-WINNOTIX_KEYS = {"hide-unplayable", "hide-adult-content", "proxy-blocked-logos"}
+WINNOTIX_KEYS = {"hide-unplayable", "hide-adult-content", "proxy-blocked-logos",
+                 "route-by-genre"}
 UPSTREAM_KEYS = set(DEFAULTS) - WINNOTIX_KEYS
 
 
