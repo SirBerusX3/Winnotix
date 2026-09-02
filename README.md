@@ -1,4 +1,7 @@
-# Winnotix
+# ![shadow](https://imglink.cc/cdn/DcEzN0VkW8.png)  Winnotix 
+
+![shadow](https://imglink.cc/cdn/rrbDmpEvus.png)
+
 
 An IPTV player for Windows — a port of [Hypnotix](https://github.com/linuxmint/hypnotix), the Linux
 Mint IPTV app, rebuilt on PySide6 with libmpv for playback.
@@ -346,3 +349,7 @@ published by [Free-TV/IPTV](https://github.com/Free-TV/IPTV) and
 redistributed here, only URLs.
 
 Winnotix is not affiliated with or endorsed by Linux Mint.
+
+## AI Assistance Disclosure
+
+Development of Winnotix was carried out with the assistance of AI tools (Primarily [Claude](https://claude.ai/) with [Perplexity](https://www.perplexity.ai) for second opinions). AI was used for architecture discussion, code review, debugging sessions, documentation, and decision-making throughout the project.
