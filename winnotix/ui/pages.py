@@ -42,6 +42,7 @@ from ..core import catalogue, countries, genres
 from ..core.common import MOVIES_GROUP, SERIES_GROUP, TV_GROUP
 from ..core.paths import resources_dir
 from . import icons
+from .flow_layout import SPANS_ROW
 from .theme import Palette
 from .video_widget import VideoWidget
 from .widgets import ChannelList, FlowPage, Tile, separator, tool_button
@@ -491,6 +492,25 @@ class ProvidersPage(QWidget):
         browse_button.setIcon(icons.icon("providers", palette.icon))
         browse_button.clicked.connect(self.browse_clicked)
 
+        # A new install has one provider, and nothing here said that the
+        # bundled indexes hold hundreds more playlists -- the button named the
+        # action but not what it would find, so the larger of the two sources
+        # went unnoticed. Counted rather than written down, so it cannot drift
+        # from what is actually bundled.
+        self.catalogue_hint = QLabel(self._catalogue_summary())
+        self.catalogue_hint.setWordWrap(True)
+        self.catalogue_hint.setProperty("dim", "true")
+        # Same trap as the Preferences hints: a word-wrapped label reports a
+        # height for a width it does not have, and the layout believes it.
+        policy = self.catalogue_hint.sizePolicy()
+        policy.setHeightForWidth(True)
+        self.catalogue_hint.setSizePolicy(policy)
+        # Measured against a width narrower than it will ever really have, so
+        # the starting height is generous rather than short; the first resize
+        # replaces it with the real one.
+        self.catalogue_hint.setMinimumHeight(
+            self.catalogue_hint.heightForWidth(FORM_WIDTH))
+
         add_button = QPushButton("  Add a new provider…")
         add_button.setIcon(icons.icon("plus", palette.icon))
         add_button.clicked.connect(self.add_clicked)
@@ -500,18 +520,47 @@ class ProvidersPage(QWidget):
         reset_button.clicked.connect(self.reset_clicked)
 
         buttons = QHBoxLayout()
-        buttons.setContentsMargins(14, 8, 14, 10)
+        buttons.setContentsMargins(14, 4, 14, 10)
         buttons.addStretch(1)
         buttons.addWidget(browse_button)
         buttons.addWidget(add_button)
         buttons.addWidget(reset_button)
+
+        # The hint gets a row of its own rather than a share of the button
+        # row: it is a sentence, and competing with three buttons for width is
+        # what would make it wrap badly or squash them.
+        hint_row = QHBoxLayout()
+        hint_row.setContentsMargins(14, 8, 14, 0)
+        hint_row.addWidget(self.catalogue_hint, 1)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         layout.addWidget(self.flow_page, 1)
         layout.addWidget(separator())
+        layout.addLayout(hint_row)
         layout.addLayout(buttons)
+
+    def resizeEvent(self, event):    # noqa: N802 -- Qt's spelling
+        super().resizeEvent(event)
+        width = self.catalogue_hint.width()
+        if width > 0:
+            self.catalogue_hint.setMinimumHeight(
+                self.catalogue_hint.heightForWidth(width))
+
+    @staticmethod
+    def _catalogue_summary() -> str:
+        """One line naming every bundled source and what it holds."""
+        entries = [e for e in catalogue.load() if not e.combined]
+        if not entries:
+            return ""
+        parts = []
+        for source in catalogue.sources():
+            of_source = [e for e in entries if e.source == source]
+            if of_source:
+                parts.append(f"{source} ({len(of_source)} countries, "
+                             f"{sum(e.channels for e in of_source):,} channels)")
+        return "Bundled playlist indexes: " + ", ".join(parts) + "."
 
     def show_providers(self, providers, active_name: str) -> None:
         self.flow_page.clear()
@@ -551,9 +600,12 @@ class CataloguePage(QWidget):
     """Pick a per-country playlist, from any source Winnotix has an index for.
 
     Two are bundled: Free-TV (~96 playlists) and the much larger iptv-org (186).
-    A country usually appears in both, so the source filter exists to make which
-    is which obvious; entries are otherwise laid out in one flow, grouped by
-    source. Each source's whole-world playlist is offered first.
+    A country usually appears in both, so each source's playlists sit under a
+    heading naming it and counting what it holds. Before those headings existed
+    the grouping was real but invisible -- iptv-org's 186 entries began after
+    96 Free-TV tiles, with the source named only in a tooltip, so the larger
+    collection was effectively only reachable through the source filter.
+    Each source's whole-world playlist is offered first within its group.
 
     Choosing an entry just creates an ordinary provider pointing at that
     playlist's URL, so nothing about it is special afterwards.
@@ -621,7 +673,11 @@ class CataloguePage(QWidget):
         matches = catalogue.order(
             catalogue.search(term, self._entries, source=self.selected_source)
         )
+        heading_shown = None
         for entry in matches:
+            if entry.source != heading_shown:
+                self.flow_page.add(self._source_heading(entry.source, matches))
+                heading_shown = entry.source
             tile = Tile(
                 entry.name,
                 entry.channels,
@@ -636,6 +692,20 @@ class CataloguePage(QWidget):
             self.flow_page.add(tile)
 
         self.summary.setText(self._summary(term, matches))
+
+    def _source_heading(self, source: str, matches: list) -> QLabel:
+        """Names a source and says how much of it is on screen.
+
+        The count is of what is showing, not of what is bundled, so it stays
+        true while a search narrows the list.
+        """
+        shown = [e for e in matches if e.source == source]
+        channels = sum(e.channels for e in shown if not e.combined)
+        label = QLabel(f"{source} — {len(shown)} playlists, "
+                       f"{channels:,} channels")
+        label.setProperty("heading", "true")
+        label.setProperty(SPANS_ROW, True)
+        return label
 
     def _summary(self, term: str, matches: list) -> str:
         if not self._entries:

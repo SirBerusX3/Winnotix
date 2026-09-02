@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from collections import Counter
 
+from itertools import groupby
+
 import pytest
 
 from winnotix.core import catalogue, countries
@@ -202,10 +204,23 @@ def test_each_source_offers_one_combined_playlist():
     assert all(e.code == "" and e.channels > 1000 for e in combined)
 
 
-def test_combined_playlists_sort_first():
+def test_each_source_leads_with_its_combined_playlist():
+    """The picker groups by source and puts a heading above each group, so a
+    combined playlist belongs under its own source rather than above them all."""
     ordered = catalogue.order(catalogue.load())
-    assert all(e.combined for e in ordered[:len(catalogue.sources())])
-    assert not any(e.combined for e in ordered[len(catalogue.sources()):])
+    for source in catalogue.sources():
+        of_source = [e for e in ordered if e.source == source]
+        assert of_source[0].combined
+        assert not any(e.combined for e in of_source[1:])
+
+
+def test_sources_come_out_grouped_and_in_declared_order():
+    ordered = catalogue.order(catalogue.load())
+    seen = list(dict.fromkeys(e.source for e in ordered))
+    assert seen == catalogue.sources()
+    # Grouped means each source appears in exactly one run.
+    runs = [source for source, _ in groupby(e.source for e in ordered)]
+    assert runs == seen
 
 
 def test_provider_name_is_namespaced():

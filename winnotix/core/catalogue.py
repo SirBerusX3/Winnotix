@@ -126,6 +126,19 @@ def search(term: str, entries: list[CatalogueEntry] | None = None,
     ]
 
 
+def source_rank(source: str) -> int:
+    """Where a source sorts: the order CATALOGUE_FILES declares, not alphabetical."""
+    order_ = list(CATALOGUE_FILES)
+    return order_.index(source) if source in order_ else len(order_)
+
+
 def order(entries: list[CatalogueEntry]) -> list[CatalogueEntry]:
-    """Combined playlists first, then by name -- the picker's display order."""
-    return sorted(entries, key=lambda e: (not e.combined, e.source, e.name.lower()))
+    """The picker's display order: by source, each source's whole-world
+    playlist first, then its countries by name.
+
+    Grouping by source is what the headings in the picker rest on. It also
+    means a source's combined playlist sits under its own heading, rather than
+    both of them sitting above every heading where neither is explained.
+    """
+    return sorted(entries, key=lambda e: (source_rank(e.source),
+                                          not e.combined, e.name.lower()))

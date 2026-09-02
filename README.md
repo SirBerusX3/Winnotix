@@ -100,8 +100,10 @@ The default provider is the combined [Free-TV/IPTV](https://github.com/Free-TV/I
 about 2,000 channels, fetched live, so it stays current on its own.
 
 **Providers → Browse country playlists** lists 282 more from two sources, with flags and channel
-counts. Picking one adds it as an ordinary provider; the source filter says which is which, since
-most countries appear in both.
+counts. Picking one adds it as an ordinary provider. Each source's playlists sit under a heading
+naming it and counting what it holds, and the source filter narrows the list to one — most
+countries appear in both. The Providers page names what is bundled, so the second source is
+visible before you open the picker.
 
 | Source | Playlists | Channels | The UK |
 |---|---:|---:|---:|

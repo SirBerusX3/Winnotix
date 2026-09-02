@@ -323,13 +323,47 @@ def catalogue_page(qapp):
     page.deleteLater()
 
 
+def picker_widgets(page):
+    """What the picker put in its flow, split into headings and tiles."""
+    from winnotix.ui.pages import Tile
+
+    flow = page.flow_page.flow
+    widgets = [flow.itemAt(i).widget() for i in range(flow.count())]
+    tiles = [w for w in widgets if isinstance(w, Tile)]
+    headings = [w.text() for w in widgets if not isinstance(w, Tile)]
+    return headings, tiles
+
+
 def test_the_picker_lists_every_source_by_default(catalogue_page):
     from winnotix.core import catalogue
 
+    headings, tiles = picker_widgets(catalogue_page)
     assert catalogue_page.selected_source is None
-    assert catalogue_page.flow_page.flow.count() == len(catalogue.load())
+    assert len(tiles) == len(catalogue.load())
     for label in catalogue.sources():
         assert label in catalogue_page.summary.text()
+        assert any(text.startswith(label) for text in headings)
+
+
+def test_every_source_gets_exactly_one_heading(catalogue_page):
+    """The complaint this fixes: iptv-org's playlists began 96 tiles down with
+    nothing on screen to say so, so the larger source looked absent."""
+    from winnotix.core import catalogue
+
+    headings, _ = picker_widgets(catalogue_page)
+    assert len(headings) == len(catalogue.sources())
+    assert [text.split(" — ")[0] for text in headings] == catalogue.sources()
+
+
+def test_a_heading_counts_what_is_showing_under_it(catalogue_page):
+    from winnotix.core import catalogue
+
+    headings, _ = picker_widgets(catalogue_page)
+    for source, text in zip(catalogue.sources(), headings):
+        entries = [e for e in catalogue.load() if e.source == source]
+        assert f"{len(entries)} playlists" in text
+        channels = sum(e.channels for e in entries if not e.combined)
+        assert f"{channels:,} channels" in text
 
 
 def test_the_source_filter_narrows_the_picker(catalogue_page):
@@ -339,15 +373,43 @@ def test_the_source_filter_narrows_the_picker(catalogue_page):
         catalogue_page.source_combo.findData(catalogue.IPTV_ORG)
     )
     expected = sum(1 for e in catalogue.load() if e.source == catalogue.IPTV_ORG)
+    headings, tiles = picker_widgets(catalogue_page)
     assert catalogue_page.selected_source == catalogue.IPTV_ORG
-    assert catalogue_page.flow_page.flow.count() == expected
+    assert len(tiles) == expected
+    assert len(headings) == 1
     assert catalogue.FREE_TV not in catalogue_page.summary.text()
 
 
 def test_searching_the_picker_spans_both_sources(catalogue_page):
     catalogue_page.search_entry.setText("britain")
-    assert catalogue_page.flow_page.flow.count() == 2
+    headings, tiles = picker_widgets(catalogue_page)
+    assert len(tiles) == 2
+    # One match each, so a heading each, and each counts only what it shows.
+    assert len(headings) == 2
+    assert all("1 playlists" in text for text in headings)
     assert "2 of" in catalogue_page.summary.text()
+
+
+def test_the_providers_page_names_both_bundled_sources(qapp):
+    """Manage providers shows one provider on a new install, which said nothing
+    about the hundreds of playlists a click away."""
+    from winnotix.core import catalogue
+    from winnotix.ui.pages import ProvidersPage
+    from winnotix.ui.theme import LIGHT
+
+    page = ProvidersPage(LIGHT)
+    try:
+        hint = page.catalogue_hint.text()
+        for label in catalogue.sources():
+            assert label in hint
+        assert "11,277 channels" in hint
+
+        # The same wrapped-label trap the preferences hints hit -- asserted the
+        # same way, on the policy and a starting height rather than on pixels.
+        assert page.catalogue_hint.sizePolicy().hasHeightForWidth()
+        assert page.catalogue_hint.minimumHeight() > 0
+    finally:
+        page.deleteLater()
 
 
 # --------------------------------------------------------------------------
@@ -629,3 +691,75 @@ def test_preference_hints_are_tall_enough_for_their_text(qapp):
     for label in wrapped:
         assert label.sizePolicy().hasHeightForWidth(), label.text()[:40]
         assert label.minimumHeight() > 0, label.text()[:40]
+
+
+# --------------------------------------------------------------------------
+# The flow layout's spanning rows
+# --------------------------------------------------------------------------
+
+def flow_fixture(qapp, widgets, width=400):
+    """Lay `widgets` out in a FlowLayout of a known width."""
+    from PySide6.QtCore import QRect
+    from PySide6.QtWidgets import QWidget
+    from winnotix.ui.flow_layout import FlowLayout
+
+    host = QWidget()
+    layout = FlowLayout(host, margin=0, spacing=10)
+    for widget in widgets:
+        layout.addWidget(widget)
+    layout.setGeometry(QRect(0, 0, width, 1000))
+    return host
+
+
+def tile_widget(width=100, height=40):
+    from PySide6.QtWidgets import QWidget
+
+    widget = QWidget()
+    widget.setFixedSize(width, height)
+    return widget
+
+
+def spanning_label(text="Source"):
+    from PySide6.QtWidgets import QLabel
+    from winnotix.ui.flow_layout import SPANS_ROW
+
+    label = QLabel(text)
+    label.setProperty(SPANS_ROW, True)
+    return label
+
+
+def test_a_spanning_widget_is_given_the_whole_width(qapp):
+    heading, first, second = spanning_label(), tile_widget(), tile_widget()
+    host = flow_fixture(qapp, [heading, first, second])
+    try:
+        assert heading.width() == 400
+        assert first.y() > heading.y(), "the tiles start a new row"
+        assert second.y() == first.y(), "and then share it as usual"
+        assert second.x() > first.x()
+    finally:
+        host.deleteLater()
+
+
+def test_a_spanning_widget_starts_its_own_row(qapp):
+    """Two tiles fit beside each other in 400px, so the heading has to be what
+    breaks the row rather than the width running out."""
+    first, heading, second = tile_widget(), spanning_label(), tile_widget()
+    host = flow_fixture(qapp, [first, heading, second])
+    try:
+        assert heading.y() > first.y()
+        assert second.y() > heading.y()
+        assert heading.x() == first.x() == second.x()
+    finally:
+        host.deleteLater()
+
+
+def test_ordinary_tiles_still_wrap_on_width(qapp):
+    """The spanning path must not have changed the plain case."""
+    tiles = [tile_widget() for _ in range(5)]
+    host = flow_fixture(qapp, tiles)
+    try:
+        rows = sorted({tile.y() for tile in tiles})
+        assert len(rows) == 2, "three fit per row at 100px + 10px spacing"
+        assert sum(1 for t in tiles if t.y() == rows[0]) == 3
+    finally:
+        host.deleteLater()

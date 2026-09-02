@@ -14,6 +14,24 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
 
 ### Added
 
+- **The playlist picker now says where one source ends and the next begins**
+  (`winnotix/ui/pages.py`, `winnotix/ui/flow_layout.py`). Two catalogues are bundled, and the
+  picker has always listed both — but Free-TV's 96 entries came first, iptv-org's 186 began after
+  them, and the only thing naming either was a tooltip. So the larger source read as absent unless
+  someone found the Source filter at the top. Reported from use, not from the code.
+  - **Each source gets a heading**: "iptv-org — 186 playlists, 11,277 channels". The count is of
+    what is on screen, not of what is bundled, so it stays true while a search narrows the list.
+  - **The Providers page names both sources and what they hold.** A new install shows one provider
+    and a button labelled with an action rather than with what it would find. The line is counted
+    from the bundled indexes rather than written down, so it cannot drift from them.
+  - `order()` now groups by source, which puts each source's *All countries* entry under its own
+    heading instead of both of them above every heading, where neither was explained.
+  - The flow layout gained the one thing this needed: a widget marked `SPANS_ROW` takes a row to
+    itself at full width. A grid of equal tiles otherwise has nowhere to put a label that
+    introduces the tiles beneath it.
+  - The hint is measured against the width it really gets — the same word-wrapped-`QLabel` trap
+    the Preferences hints hit below, met here before it could clip anything.
+
 - **A version resource on `Winnotix.exe`** (`build.py`, `winnotix.spec`). Properties → Details was
   blank and Task Manager showed the bare filename. That is worth fixing on its own, but the reason
   it is worth fixing *before* a release is that carrying no version information at all is one of

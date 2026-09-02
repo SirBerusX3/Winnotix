@@ -3,12 +3,28 @@
 Qt ships no equivalent, and the three upstream FlowBoxes (categories, VOD,
 providers) all rely on reflowing to the available width. This is the standard
 height-for-width layout: place items left to right, wrap when the row is full.
+
+One addition upstream has no equivalent for: a widget carrying the `SPANS_ROW`
+property takes a row to itself, at the full width available. A flow of equal
+tiles otherwise has nowhere to put a label that introduces the tiles beneath
+it, which is what the playlist picker needs to show where one source's
+playlists end and the next source's begin.
 """
 
 from __future__ import annotations
 
 from PySide6.QtCore import QMargins, QPoint, QRect, QSize, Qt
 from PySide6.QtWidgets import QLayout
+
+
+#: Set this property on a widget to give it a row of its own, spanning the
+#: full width: ``widget.setProperty(SPANS_ROW, True)``.
+SPANS_ROW = "flowSpansRow"
+
+
+def _spans_row(item) -> bool:
+    widget = item.widget()
+    return widget is not None and bool(widget.property(SPANS_ROW))
 
 
 class FlowLayout(QLayout):
@@ -73,18 +89,30 @@ class FlowLayout(QLayout):
         x, y = effective.x(), effective.y()
         row_height = 0
         spacing = self.spacing()
+        # Whether the item just placed took the whole row, in which case the
+        # next one starts a new row however much space appears to be left.
+        after_span = False
 
         for item in self._items:
             hint = item.sizeHint()
-            next_x = x + hint.width() + spacing
-            if next_x - spacing > effective.right() and row_height > 0:
+            spans = _spans_row(item)
+            width = effective.width() if spans else hint.width()
+
+            if row_height > 0 and (spans or after_span
+                                   or x + width > effective.right()):
                 x = effective.x()
                 y = y + row_height + spacing
-                next_x = x + hint.width() + spacing
                 row_height = 0
+
+            # A spanning item is being given a width it did not ask for, so its
+            # own height for that width is the one to use -- a word-wrapped
+            # label reports a height for its natural width otherwise.
+            height = (item.heightForWidth(width) if spans and item.hasHeightForWidth()
+                      else hint.height())
             if apply:
-                item.setGeometry(QRect(QPoint(x, y), hint))
-            x = next_x
-            row_height = max(row_height, hint.height())
+                item.setGeometry(QRect(QPoint(x, y), QSize(width, height)))
+            x = x + width + spacing
+            row_height = max(row_height, height)
+            after_span = spans
 
         return y + row_height - rect.y() + margins.bottom()
