@@ -1,9 +1,11 @@
 """Tests for the packaging guard rails (build.py).
 
-Only the signing gate is covered here. The rest of build.py drives PyInstaller,
-pip and a 115 MB download, none of which belongs in a unit test -- but "an
-unsigned build must not become a release by accident" is a rule, and a rule is
-worth pinning.
+The signing gate and the version resource are covered here. The rest of
+build.py drives PyInstaller, pip and a 115 MB download, none of which belongs
+in a unit test -- but "an unsigned build must not become a release by accident"
+is a rule, and a rule is worth pinning. The version resource is here for a
+different reason: it is written once and then only ever read by Windows, so
+nothing else would notice if it stopped matching the app.
 """
 
 from __future__ import annotations
@@ -94,3 +96,63 @@ def test_package_offers_the_escape_hatch():
         capture_output=True, text=True, timeout=120)
     assert result.returncode == 0, result.stderr
     assert "--allow-unsigned" in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# The version resource
+# ---------------------------------------------------------------------------
+
+def string_table(resource) -> dict[str, str]:
+    """The StringFileInfo entries, flattened to a dict."""
+    table = resource.kids[0].kids[0]
+    return {entry.name: entry.val for entry in table.kids}
+
+
+def test_the_version_is_read_from_the_package():
+    """One source of truth: About and the executable must agree."""
+    import winnotix
+
+    assert build.read_version() == winnotix.__version__
+
+
+def test_windows_always_gets_four_numbers():
+    assert build.version_numbers("0.1.0") == (0, 1, 0, 0)
+    assert build.version_numbers("1.2.3.4") == (1, 2, 3, 4)
+    assert build.version_numbers("2") == (2, 0, 0, 0)
+
+
+def test_a_version_with_no_numbers_is_an_error():
+    with pytest.raises(build.Failure):
+        build.version_numbers("alpha")
+
+
+def test_the_resource_carries_the_version_in_both_forms():
+    """The string is what Properties shows; the numbers are what Windows sorts
+    on, and an installer or an updater compares."""
+    resource = build.version_resource()
+    version = build.read_version()
+
+    assert string_table(resource)["FileVersion"] == version
+    assert string_table(resource)["ProductVersion"] == version
+
+    major, minor, patch, _ = build.version_numbers(version)
+    assert resource.ffi.fileVersionMS == (major << 16) | minor
+    assert resource.ffi.fileVersionLS == (patch << 16)
+
+
+def test_the_fields_windows_actually_shows_are_filled_in():
+    """FileDescription is the one Task Manager and the SmartScreen prompt use,
+    and it is the field a blank version resource costs most."""
+    fields = string_table(build.version_resource())
+
+    assert fields["FileDescription"] == "Winnotix IPTV player"
+    assert fields["OriginalFilename"] == "Winnotix.exe"
+    assert "GPLv3" in fields["LegalCopyright"]
+
+
+def test_the_language_and_the_translation_entry_agree():
+    """A mismatch here is not an error -- Windows just reads neither of them."""
+    resource = build.version_resource()
+    language, charset = resource.kids[1].kids[0].kids
+
+    assert resource.kids[0].kids[0].name == f"{language:04X}{charset:04X}"

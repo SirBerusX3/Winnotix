@@ -14,6 +14,19 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
 
 ### Added
 
+- **A version resource on `Winnotix.exe`** (`build.py`, `winnotix.spec`). Properties → Details was
+  blank and Task Manager showed the bare filename. That is worth fixing on its own, but the reason
+  it is worth fixing *before* a release is that carrying no version information at all is one of
+  the things shape-based antivirus heuristics count against a PyInstaller build — which this one
+  already looks like in every other respect. It is not a substitute for signing; it is the free
+  part of the same problem.
+  - **The version is read from `winnotix/__init__.py`, not restated.** `build.version_resource()`
+    parses it out rather than importing the package, because the system Python that runs `build.py`
+    is not required to have PySide6 installed. About and the executable cannot drift apart.
+  - Windows wants four numbers whatever the string says, so `0.1.0` becomes `(0, 1, 0, 0)`.
+  - `FileDescription` is the field Task Manager and the SmartScreen prompt actually show, so it
+    reads as a sentence — "Winnotix IPTV player" — rather than as a token.
+
 - **Subtitle controls** (`winnotix/ui/main_window.py`, Preferences → Subtitles, **V**). Neither
   Winnotix nor upstream Hypnotix touched subtitles at all, which did not mean subtitles were off:
   mpv selects a track a stream marks as default, so they were appearing with no way to turn them

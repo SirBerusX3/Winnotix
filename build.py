@@ -25,6 +25,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -229,6 +230,84 @@ def cmd_test(args) -> int:
     ).returncode
 
 
+#: The one place the version is written down. The app reads it for the About
+#: box, and the block below stamps the same string into the executable, so
+#: there is nothing to keep in step by hand.
+VERSION_SOURCE = ROOT / "winnotix" / "__init__.py"
+
+
+def read_version() -> str:
+    """The app's version, read out of `winnotix/__init__.py` rather than imported.
+
+    Importing the package would pull in PySide6, which the system Python running
+    this script is not required to have.
+    """
+    match = re.search(r'^__version__\s*=\s*"([^"]+)"',
+                      VERSION_SOURCE.read_text(encoding="utf-8"), re.M)
+    if match is None:
+        raise Failure(f"no __version__ in {VERSION_SOURCE}")
+    return match.group(1)
+
+
+def version_numbers(version: str) -> tuple[int, int, int, int]:
+    """`0.1.0` -> `(0, 1, 0, 0)`.
+
+    A Windows version resource is always four numbers, whatever the string form
+    says; anything the version does not supply is zero.
+    """
+    found = [int(part) for part in re.findall(r"\d+", version)[:4]]
+    if not found:
+        raise Failure(f"no numbers in version {version!r}")
+    return tuple(found + [0] * (4 - len(found)))
+
+
+def version_resource():
+    """The Windows version resource stamped into `Winnotix.exe`.
+
+    Without one, Properties -> Details is blank and Task Manager shows the bare
+    filename. That is worth fixing on its own, but the reason it is worth doing
+    *before* a release is that an executable carrying no version information is
+    one of the things antivirus heuristics count against a PyInstaller build --
+    which this one already looks like in every other respect. It is not a
+    substitute for signing (roadmap section 11); it is the free part of the
+    same problem.
+
+    Returns a PyInstaller `VSVersionInfo`, which `winnotix.spec` hands to EXE().
+    """
+    from PyInstaller.utils.win32.versioninfo import (
+        FixedFileInfo, StringFileInfo, StringStruct, StringTable,
+        VarFileInfo, VarStruct, VSVersionInfo,
+    )
+
+    version = read_version()
+    numbers = version_numbers(version)
+    return VSVersionInfo(
+        # The remaining FixedFileInfo defaults are already right for an
+        # application: VOS_NT_WINDOWS32 and VFT_APP.
+        ffi=FixedFileInfo(filevers=numbers, prodvers=numbers),
+        kids=[
+            StringFileInfo([
+                # 0409 is en-US and 04B0 is UTF-16. The pair has to match the
+                # Translation entry below, or Windows reads neither of them.
+                StringTable("040904B0", [
+                    StringStruct("CompanyName", "Winnotix"),
+                    # This is the field Task Manager and the SmartScreen prompt
+                    # actually show, so it reads as a sentence, not a token.
+                    StringStruct("FileDescription", "Winnotix IPTV player"),
+                    StringStruct("FileVersion", version),
+                    StringStruct("InternalName", "Winnotix"),
+                    StringStruct("LegalCopyright",
+                                 "GPLv3. Derived from Hypnotix, © Linux Mint."),
+                    StringStruct("OriginalFilename", "Winnotix.exe"),
+                    StringStruct("ProductName", "Winnotix"),
+                    StringStruct("ProductVersion", version),
+                ]),
+            ]),
+            VarFileInfo([VarStruct("Translation", [0x0409, 1200])]),
+        ],
+    )
+
+
 #: How signing is configured. A command template rather than a fixed signtool
 #: invocation, because the three routes worth considering -- SignPath's free
 #: tier for open source, Azure Trusted Signing, an OV certificate on a hardware
@@ -289,6 +368,7 @@ def cmd_package(args) -> int:
             "  It is listed in requirements-dev.txt, so:  python build.py setup"
         )
     say(f"PyInstaller {check.stdout.strip()}")
+    say(f"version {read_version()}")
 
     if not SPEC.is_file():
         raise Failure(f"missing {SPEC.name}")

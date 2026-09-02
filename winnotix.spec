@@ -21,9 +21,17 @@ the app needed changing to support being frozen:
 Neither was written for this build; both were written in anticipation of it.
 """
 
+import sys
 from pathlib import Path
 
 ROOT = Path(SPECPATH)
+
+# build.py is what runs this spec, and it owns the packaging concerns -- the
+# signing step, and the version resource below. Importing it here keeps the
+# version in one place (winnotix/__init__.py) instead of restating it as a
+# literal that would quietly go stale.
+sys.path.insert(0, str(ROOT))
+from build import version_resource  # noqa: E402
 
 MPV_DLL_NAMES = ("libmpv-2.dll", "mpv-2.dll", "mpv-1.dll")
 
@@ -136,6 +144,9 @@ exe = EXE(
     # would appear behind the app on every launch.
     console=False,
     icon=str(ROOT / "resources" / "appicon.ico"),
+    # Properties -> Details, Task Manager, and the heuristics that look at a
+    # binary's shape rather than its contents. See build.version_resource().
+    version=version_resource(),
 )
 
 coll = COLLECT(
