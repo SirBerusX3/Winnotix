@@ -35,11 +35,11 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag || github.ref }}
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
 
@@ -48,7 +48,7 @@ jobs:
       # release build to a couple of minutes and keeps us off the GitHub API's
       # anonymous rate limit, which a runner shares with every other runner.
       - name: Cache libmpv
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: vendor/libmpv
           key: libmpv-${{ runner.os }}
@@ -93,7 +93,7 @@ jobs:
           "### ``Winnotix-portable.zip``" | Out-File -Append $env:GITHUB_STEP_SUMMARY
           "SHA-256 ``$hash``" | Out-File -Append $env:GITHUB_STEP_SUMMARY
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: Winnotix-portable
           path: |
