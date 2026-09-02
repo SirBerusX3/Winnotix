@@ -1,0 +1,54 @@
+# Runs the suite on every push and pull request.
+#
+# Windows only, because that is the only platform Winnotix targets: the paths,
+# the DLL loading and the packaging are all Windows-specific, and a green run on
+# Linux would say nothing useful.
+#
+# Two Python versions, because the README claims 3.12 or newer and development
+# happens on 3.14 -- so this checks the floor as well as the ceiling rather than
+# taking the claim on trust.
+#
+# No libmpv here. Nothing in the suite imports winnotix.ui.main_window, which is
+# the module that loads the DLL at import time, so the tests need neither the
+# 115 MB download nor the 7-Zip unpack that build.py does.
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pytest:
+    name: Python ${{ matrix.python }}
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.14"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Run the suite
+        # Offscreen so no window is ever mapped: the UI tests drive real widgets
+        # and assert on real geometry, which Qt computes the same either way.
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m pytest -q

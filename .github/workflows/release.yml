@@ -1,0 +1,115 @@
+# Builds the portable app from a tag, and attaches it to a draft release.
+#
+# The point of building here rather than on a maintainer's machine is
+# provenance: the artifact comes from a named commit, built by a pipeline whose
+# configuration is in the repository. That is what SignPath Foundation's terms
+# ask for -- "binary artifacts must be built from source code in a verifiable
+# way" -- and it is what makes signing meaningful once a certificate exists.
+#
+# It runs the same command a maintainer runs, `python build.py package --zip`,
+# rather than reimplementing the build in YAML. build.py creates the virtualenv,
+# installs pinned requirements, fetches libmpv and drives PyInstaller against
+# the hand-written winnotix.spec, so what CI produces and what a developer
+# produces cannot drift apart.
+#
+# The release is left as a DRAFT on purpose. Publishing stays a human act:
+# release notes are written by hand, and SignPath's terms require manual
+# approval per release in any case.
+name: Release build
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build (e.g. v0.1.0)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  portable:
+    name: Portable build
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      # libmpv is a 115 MB download and a 7-Zip unpack, and it changes only when
+      # build.py's pinned source publishes a new build. Caching it keeps a
+      # release build to a couple of minutes and keeps us off the GitHub API's
+      # anonymous rate limit, which a runner shares with every other runner.
+      - name: Cache libmpv
+        uses: actions/cache@v4
+        with:
+          path: vendor/libmpv
+          key: libmpv-${{ runner.os }}
+
+      - name: Check the tag matches the version in the source
+        shell: pwsh
+        run: |
+          $tag = "${{ inputs.tag || github.ref_name }}"
+          $source = (Select-String -Path winnotix/__init__.py `
+                                   -Pattern '__version__\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
+          Write-Output "tag $tag, __version__ $source"
+          if ($tag -ne "v$source") {
+              throw "Tag $tag does not match __version__ $source. One of them is wrong."
+          }
+
+      - name: Build the portable app
+        shell: pwsh
+        # When a signing command is configured as a repository secret, build.py
+        # runs it after PyInstaller's COLLECT and before the archive, and fails
+        # the build if it fails. Until then the archive has to be asked for
+        # explicitly, which is the gate doing its job rather than an oversight.
+        #
+        # If SignPath instead wants its own action to submit the artifact, it
+        # slots between the build and the archive -- which means splitting this
+        # into `package` and a later `--zip`, not editing this line.
+        env:
+          WINNOTIX_SIGN_COMMAND: ${{ secrets.WINNOTIX_SIGN_COMMAND }}
+        run: |
+          if ($env:WINNOTIX_SIGN_COMMAND) {
+              python build.py package --zip
+          } else {
+              Write-Output "::warning::No WINNOTIX_SIGN_COMMAND secret - this build is unsigned."
+              python build.py package --zip --allow-unsigned
+          }
+
+      - name: Checksum
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash dist/Winnotix-portable.zip -Algorithm SHA256).Hash.ToLower()
+          Write-Output $hash
+          "$hash *Winnotix-portable.zip" | Out-File -Encoding ascii dist/Winnotix-portable.zip.sha256
+          "### ``Winnotix-portable.zip``" | Out-File -Append $env:GITHUB_STEP_SUMMARY
+          "SHA-256 ``$hash``" | Out-File -Append $env:GITHUB_STEP_SUMMARY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Winnotix-portable
+          path: |
+            dist/Winnotix-portable.zip
+            dist/Winnotix-portable.zip.sha256
+          retention-days: 30
+
+      - name: Attach it to a draft release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ inputs.tag || github.ref_name }}"
+          gh release view $tag 2>$null
+          if ($LASTEXITCODE -ne 0) {
+              gh release create $tag --draft --title "Winnotix $($tag -replace '^v','')" `
+                  --notes "Draft - built by the release workflow. Write the notes before publishing."
+          }
+          gh release upload $tag dist/Winnotix-portable.zip dist/Winnotix-portable.zip.sha256 --clobber
