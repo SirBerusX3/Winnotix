@@ -14,6 +14,64 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
 
 ### Added
 
+- **The Movies and Series grids filter too** (`winnotix/ui/pages.py`, `winnotix/ui/flow_layout.py`).
+  A grid filters as well as a list does — better, since the tiles reflow to close the gaps instead
+  of leaving a column of holes. It needed one thing: the flow layout now treats a hidden tile as
+  taking no space, which is what Qt's own layouts do and what the grid would otherwise have got
+  wrong.
+  - Tiles are hidden and shown rather than rebuilt. A routed Movies grid runs to 795 posters, and
+    rebuilding that many widgets per keystroke is the one way to make a filter feel slower than
+    scrolling.
+  - Ctrl+F now focuses whichever filter the current page has, and the placeholder names what it
+    filters — "Filter movies…", "Filter series…".
+
+- **Search every provider at once** (`winnotix/core/search.py`, and a checkbox under the channel
+  filter). The filter answers "where is BBC One in this list"; this answers "which of my providers
+  has BBC One at all", which is the question two providers create and neither list can answer.
+  Results are labelled with the provider they came from, and opening one switches to that provider
+  before it plays — the channel could be played from its URL alone, but everything around it, the
+  list behind it and favourites and the guide, is scoped to the provider that is open.
+  - **Cached only, deliberately.** It searches the playlists already in
+    `%LOCALAPPDATA%\Winnotix\cache\providers`, and a provider that has never been opened is
+    named as unsearched rather than downloaded. Ticking a checkbox is not consent to fetch 14 MB,
+    which is what `iptv-org All countries` costs. Xtream providers are named too: their channels
+    come from an authenticated API and are not in the playlist cache at all.
+  - **Built once, then queried in memory.** Both of this author's providers together — 12,023
+    channels after the blocklist, one of them iptv-org's whole world — parse from cache in 0.30 s,
+    and a search of them takes 1.3 ms. That is why the index is built when the box is ticked and
+    not on each keystroke, and why it needs no worker thread.
+  - **The blocklist applies; genre routing does not.** A result the app would refuse to list is a
+    result that wastes a click, but which tile a channel is filed under is a browsing decision and
+    should not decide whether a search can find it.
+  - Names that *start* with the term come first, so "bbc" leads with BBC One rather than with a
+    channel that mentions the BBC halfway through.
+  - Two bugs the work found, both by driving the real window rather than by reading it: the feature
+    read its own state back off `isVisible()`, which is false whenever another page is on screen,
+    so it turned itself off mid-use; and the list it restored on unticking was the one from before
+    the search, which is the wrong provider's list once a result has switched providers.
+  - **A third, found by asking whether the grids needed their own version of this.** They do not --
+    because the index skips routing, a title that browses under Movies or Series is already in the
+    search. But opening one looked it up in `provider.channels`, which is the one list routing takes
+    it *out* of, so a routed result reported "no longer in this provider": 1,356 of iptv-org's
+    titles with routing on. `search.locate()` now looks through the groups, where every channel is
+    regardless of how it was filed.
+
+- **The channel filter is on screen instead of behind a button**
+  (`winnotix/ui/pages.py`, `winnotix/ui/widgets.py`, `winnotix/ui/main_window.py`). Searching a
+  channel list has worked since Phase 3, but it lived behind a toggle in the header: you had to
+  press Ctrl+F, or recognise the magnifier, before a field appeared. Reported as a missing feature,
+  which is the clearest evidence a feature is missing. A country list runs to hundreds of rows --
+  iptv-org's UK is 310 -- so the filter now sits above the list it filters, visible from the moment
+  the list is.
+  - Ctrl+F still works and now only moves focus. Escape clears the filter rather than closing it,
+    since there is nothing left to close.
+  - **A new list arrives unfiltered.** The old toggle cleared the filter when it was switched off;
+    a field that stays on screen has to be cleared when the list underneath it is replaced, or the
+    previous country's search would silently hide most of the next one.
+  - The filter hides with the sidebar, where on its own it would filter a list nobody can see.
+  - The header bar loses its search button and entry, so there is one search rather than two ways
+    of reaching one.
+
 - **The playlist picker now says where one source ends and the next begins**
   (`winnotix/ui/pages.py`, `winnotix/ui/flow_layout.py`). Two catalogues are bundled, and the
   picker has always listed both — but Free-TV's 96 entries came first, iptv-org's 186 began after

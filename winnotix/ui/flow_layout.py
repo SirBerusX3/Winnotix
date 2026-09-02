@@ -94,6 +94,11 @@ class FlowLayout(QLayout):
         after_span = False
 
         for item in self._items:
+            # A hidden widget takes no space, the way it does in Qt's own
+            # layouts. Without this a filtered grid keeps a gap where every
+            # hidden tile used to be.
+            if item.isEmpty():
+                continue
             hint = item.sizeHint()
             spans = _spans_row(item)
             width = effective.width() if spans else hint.width()

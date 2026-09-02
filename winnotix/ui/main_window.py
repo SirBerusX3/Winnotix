@@ -24,7 +24,7 @@ from PySide6.QtWidgets import (
 )
 
 from .. import __version__
-from ..core import epg, genres, health, mpvloader, ytdlp
+from ..core import epg, genres, health, mpvloader, search, ytdlp
 from ..core.filters import Blocklist, FilterResult
 from ..core.genres import GenreIndex
 from ..core.common import (
@@ -100,6 +100,12 @@ class MainWindow(QMainWindow):
         # re-fetched. Clear them once, in the background.
         self.logo_cache.purge_cached_refusals()
         self.blocklist = Blocklist.load()
+        # Cross-provider search: the index, and the list results stand in for.
+        self.channel_index = None
+        self.open_list: list = []
+        # A result from another provider cannot play until that provider is
+        # loaded, so it waits here for the load to finish.
+        self.play_after_load = None
         self.genres = GenreIndex.load()
         self.epg_store = epg.EpgStore(
             user_agent=self.settings.get_string("user-agent") or "winnotix")
@@ -143,8 +149,6 @@ class MainWindow(QMainWindow):
     def _build_ui(self) -> None:
         self.header = HeaderBar(self.palette_)
         self.header.back_clicked.connect(self.on_go_back)
-        self.header.search_toggled.connect(self._on_search_toggled)
-        self.header.search_changed.connect(self._on_search_changed)
         self.header.fullscreen_clicked.connect(self.toggle_fullscreen)
 
         self.status = StatusBar(self.palette_)
@@ -172,11 +176,14 @@ class MainWindow(QMainWindow):
         self.channels = P.ChannelsPage(self.palette_, self.logo_cache)
         self.channels.channel_activated.connect(self.on_channel_activated)
         self.channels.favorite_toggled.connect(self.on_favorite_toggled)
+        self.channels.channel_search.textChanged.connect(self._on_search_changed)
+        self.channels.search_all_check.toggled.connect(self._on_search_all_toggled)
         self.channels.video.wid_ready.connect(self._on_wid_ready)
         self._add_page(CHANNELS, self.channels)
 
         self.vod = P.VodPage(self.logo_cache)
         self.vod.item_clicked.connect(self.on_vod_item_clicked)
+        self.vod.filtered.connect(self._on_vod_filtered)
         self._add_page(VOD, self.vod)
 
         self.episodes = P.EpisodesPage()
@@ -267,7 +274,7 @@ class MainWindow(QMainWindow):
 
     def _build_shortcuts(self) -> None:
         for keys, handler in (
-            ("Ctrl+F", lambda: self.header.search_button.toggle()),
+            ("Ctrl+F", self._focus_channel_filter),
             ("F11", self.toggle_fullscreen),
             ("Escape", self._on_escape),
             ("Ctrl+W", self.close),
@@ -285,7 +292,6 @@ class MainWindow(QMainWindow):
         provider = self.active_provider
         self.back_page = LANDING
         self.header.back_button.show()
-        self.header.search_button.setVisible(page == CHANNELS)
         self.header.fullscreen_button.hide()
 
         if page == LANDING:
@@ -370,8 +376,10 @@ class MainWindow(QMainWindow):
     def _on_escape(self) -> None:
         if self._is_fullscreen:
             self.toggle_fullscreen()
-        elif self.header.search_button.isChecked():
-            self.header.search_button.setChecked(False)
+        elif self.channels.channel_search.text():
+            self.channels.clear_filter()
+        elif self.vod.search.text():
+            self.vod.search.clear()
 
     # ------------------------------------------------------------------
     # Providers
@@ -384,6 +392,11 @@ class MainWindow(QMainWindow):
                 self.providers.append(Provider(name=None, provider_info=info))
             except ValueError:
                 print(f"[winnotix] skipping malformed provider entry: {info!r}")
+
+        # Searching everywhere means nothing with one provider, and the index
+        # it holds is stale the moment the provider list changes.
+        self.channels.set_search_all_available(len(self.providers) > 1)
+        self.channel_index = None
 
         active_name = self.settings.get_string("active-provider")
         chosen = next((p for p in self.providers if p.name == active_name), None)
@@ -484,6 +497,7 @@ class MainWindow(QMainWindow):
         if provider is not self.active_provider:
             return  # a different provider was selected while this one loaded
         if not ok:
+            self.play_after_load = None
             self.navigate_to(LANDING)
             self.status.set_status(f"{provider.name}: {message}")
             return
@@ -491,6 +505,9 @@ class MainWindow(QMainWindow):
         self.epg_urls = epg.guide_urls(provider.path, provider)
         self.epg_guides = []
         self.epg_country = None
+        if self.play_after_load is not None:
+            self._open_searched_channel(provider, self.play_after_load)
+            return
         self.navigate_to(LANDING)
         summary = (
             f"{provider.name}: {len(provider.channels)} channels, "
@@ -610,7 +627,7 @@ class MainWindow(QMainWindow):
             self.show_channels(channels)
         elif self.content_type == MOVIES_GROUP:
             movies = group.channels if group else provider.movies
-            self.vod.show_items(movies)
+            self.vod.show_items(movies, "movies")
             self.navigate_to(VOD)
         else:
             if group is not None:
@@ -618,12 +635,18 @@ class MainWindow(QMainWindow):
                 series = group.series or group.channels
             else:
                 series = provider.series or genres.series_channels(provider)
-            self.vod.show_items(series)
+            self.vod.show_items(series, "series")
             self.navigate_to(VOD)
 
     def show_channels(self, channels, favorites: bool = False) -> None:
         self.content_type = TV_GROUP
+        # Recorded before the list is built, because clearing the filter can
+        # ask for it back: this is what the sidebar shows when it is not
+        # showing search results, and it changes with every provider switch --
+        # including the one a search result triggers.
+        self.open_list = list(channels)
         self.channels.set_sidebar_visible(True)
+        self.channels.clear_filter()
         self.channels.channel_list.set_channels(channels)
         self.navigate_to(CHANNELS, favorites=favorites)
         self.status.set_status(f"{self.channels.channel_list.count()} channels")
@@ -817,16 +840,114 @@ class MainWindow(QMainWindow):
     # Search
     # ------------------------------------------------------------------
 
-    def _on_search_toggled(self, checked: bool) -> None:
+    def _open_searched_channel(self, provider: Provider, wanted) -> None:
+        """Land on a search result in its own provider, list and all.
+
+        The channel the index handed back was parsed separately, so it is not
+        the object this provider just loaded -- the URL is what identifies it.
+        The group it belongs to becomes the sidebar list, so what surrounds the
+        result is what would have surrounded it had the provider been open.
+        """
+        self.play_after_load = None
+        match, group = search.locate(provider, wanted.url)
+        if match is None:
+            # It was in the cache when the index was built and is not in the
+            # playlist now, which a refresh between the two would explain.
+            self.navigate_to(LANDING)
+            self.status.set_status(
+                f"{wanted.name} is no longer in {provider.name}.")
+            return
+        self.show_channels(group.channels if group is not None else [match])
+        self.on_channel_activated(match)
+
+    def _focus_channel_filter(self) -> None:
+        """Ctrl+F, wherever there is something to filter."""
+        current = self.stack.currentWidget()
+        if current is self.pages[CHANNELS]:
+            field = self.channels.channel_search
+        elif current is self.pages[VOD]:
+            field = self.vod.search
+        else:
+            return
+        field.setFocus()
+        field.selectAll()
+
+    def _on_vod_filtered(self, showing: int, total: int) -> None:
+        noun = "movies" if self.content_type == MOVIES_GROUP else "series"
+        if showing == total:
+            self.status.set_status(f"{total} {noun}")
+        else:
+            self.status.set_status(f"{showing} of {total} {noun} match")
+
+    def _on_search_all_toggled(self, checked: bool) -> None:
+        """Build the cross-provider index, or put the open list back.
+
+        Building is synchronous: both of the author's providers together --
+        12,000 channels, one of them iptv-org's whole world -- parse from cache
+        in about a third of a second, which is not worth a worker thread and
+        the state it would need. It is still built once here rather than per
+        keystroke, because a third of a second per keystroke certainly would be.
+        """
         if not checked:
-            self.channels.channel_list.filter("")
+            self.channel_index = None
+            self._restore_open_list()
+            return
+
+        blocklist = self.blocklist if self.settings.get_boolean("hide-unplayable") else None
+        self.channel_index = search.ChannelIndex.build(
+            self.providers, self.manager.load_channels, blocklist=blocklist)
+        self._report_index()
+        self._on_search_changed(self.channels.channel_search.text())
+
+    def _report_index(self) -> None:
+        """Say what was indexed, and name what was left out.
+
+        A provider with nothing cached is the one case where fewer results is
+        not the playlist's fault, so it is said plainly rather than left to
+        look like an empty search.
+        """
+        index = self.channel_index
+        if index is None:
+            return
+        message = (f"Searching {len(index):,} channels "
+                   f"across {len(index.providers)} providers")
+        if index.missing:
+            names = ", ".join(index.missing)
+            message += f" — not loaded, so not searched: {names}"
+        self.status.set_status(message)
+
+    def _restore_open_list(self) -> None:
+        """Put back the list the search replaced, still filtered as it was."""
+        self.channels.channel_list.set_channels(self.open_list)
+        self._on_search_changed(self.channels.channel_search.text())
 
     def _on_search_changed(self, text: str) -> None:
+        if self.channels.searching_everywhere and self.channel_index is not None:
+            self._show_search_results(text)
+            return
         matches = self.channels.channel_list.filter(text)
         if text:
             self.status.set_status(f"{matches} channels match “{text}”")
         else:
             self.status.set_status(f"{self.channels.channel_list.count()} channels")
+
+    def _show_search_results(self, text: str) -> None:
+        if not text.strip():
+            # An empty search means "show me what I was looking at", not
+            # "show me twelve thousand rows".
+            self.channels.channel_list.set_channels(self.open_list)
+            self._report_index()
+            return
+        hits = self.channel_index.search(text)
+        self.channels.channel_list.set_channels(
+            [hit.channel for hit in hits],
+            suffix=lambda channel: getattr(channel, "search_provider", ""),
+        )
+        providers = len({hit.provider for hit in hits})
+        self.status.set_status(
+            f"{len(hits)} channels match “{text}” across {providers} "
+            f"provider{'' if providers == 1 else 's'}"
+        )
 
     # ------------------------------------------------------------------
     # Favourites
@@ -993,6 +1114,20 @@ class MainWindow(QMainWindow):
     def on_channel_activated(self, channel) -> None:
         if channel is None or not channel.url or self.mpv is None:
             return
+        # A cross-provider search result belongs to a provider that is not
+        # open. It could be played from its URL alone, but everything around
+        # it -- the list behind it, favourites, the guide -- is scoped to the
+        # active provider, so the provider is switched first and the channel
+        # played when that finishes. The playlist is cached, so this is a
+        # parse rather than a download.
+        origin = getattr(channel, "search_provider", "")
+        if origin and (self.active_provider is None
+                       or origin != self.active_provider.name):
+            provider = next((p for p in self.providers if p.name == origin), None)
+            if provider is not None:
+                self.play_after_load = channel
+                self.load_provider(provider)
+                return
         self.page_is_loading = True
         self.active_channel = channel
         self.channels.set_channel(channel)
@@ -1207,7 +1342,7 @@ class MainWindow(QMainWindow):
         rows = [
             ("Ctrl+F", "Search channels"),
             ("F11", "Toggle fullscreen"),
-            ("Escape", "Leave fullscreen or close search"),
+            ("Escape", "Leave fullscreen or clear the channel filter"),
             ("Backspace", "Go back"),
             ("Space", "Pause / resume"),
             ("F1", "About"),

@@ -14,7 +14,6 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QListWidget,
     QListWidgetItem,
     QMenu,
@@ -55,11 +54,14 @@ def tool_button(icon_name: str, tooltip: str, palette: Palette,
 
 
 class HeaderBar(QWidget):
-    """GtkHeaderBar equivalent: back, title/subtitle, search, fullscreen, menu."""
+    """GtkHeaderBar equivalent: back, title/subtitle, fullscreen, menu.
+
+    The channel search used to live here, behind a toggle button. It now sits
+    above the list it filters (`ChannelsPage`), because a filter that only
+    appears once you press the right button is one most people never find.
+    """
 
     back_clicked = Signal()
-    search_toggled = Signal(bool)
-    search_changed = Signal(str)
     fullscreen_clicked = Signal()
 
     def __init__(self, palette: Palette, parent=None) -> None:
@@ -81,9 +83,6 @@ class HeaderBar(QWidget):
         titles.addWidget(self.title_label, 0, Qt.AlignmentFlag.AlignHCenter)
         titles.addWidget(self.subtitle_label, 0, Qt.AlignmentFlag.AlignHCenter)
 
-        self.search_button = tool_button("search", "Search (Ctrl+F)", palette, checkable=True)
-        self.search_button.toggled.connect(self._on_search_toggled)
-
         self.fullscreen_button = tool_button("fullscreen", "Fullscreen (F11)", palette)
         self.fullscreen_button.clicked.connect(self.fullscreen_clicked)
 
@@ -92,12 +91,6 @@ class HeaderBar(QWidget):
         self.menu = QMenu(self)
         self.menu_button.setMenu(self.menu)
 
-        self.search_entry = QLineEdit()
-        self.search_entry.setPlaceholderText("Search channels…")
-        self.search_entry.setClearButtonEnabled(True)
-        self.search_entry.textChanged.connect(self.search_changed)
-        self.search_entry.hide()
-
         top = QHBoxLayout()
         top.setContentsMargins(8, 6, 8, 6)
         top.setSpacing(4)
@@ -105,7 +98,6 @@ class HeaderBar(QWidget):
         top.addStretch(1)
         top.addLayout(titles)
         top.addStretch(1)
-        top.addWidget(self.search_button)
         top.addWidget(self.fullscreen_button)
         top.addWidget(self.menu_button)
 
@@ -113,15 +105,6 @@ class HeaderBar(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         layout.addLayout(top)
-        layout.addWidget(self.search_entry)
-
-    def _on_search_toggled(self, checked: bool) -> None:
-        self.search_entry.setVisible(checked)
-        if checked:
-            self.search_entry.setFocus()
-        else:
-            self.search_entry.clear()
-        self.search_toggled.emit(checked)
 
     def set_titles(self, title: str, subtitle: str = "") -> None:
         self.title_label.setText(title)
@@ -319,16 +302,28 @@ class ChannelList(QListWidget):
         self._by_path: dict[str, list[QListWidgetItem]] = {}
         logo_cache.logo_ready.connect(self._on_logo_ready)
 
-    def set_channels(self, channels) -> None:
+    #: Between a channel name and the provider it came from.
+    SOURCE_SEPARATOR = "   —   "
+
+    def set_channels(self, channels, suffix=None) -> None:
+        """`suffix` returns a note to show after a channel's name, or "".
+
+        Only cross-provider search results use it, to say which provider a row
+        came from -- a name on its own is ambiguous when the list is drawn from
+        several playlists at once.
+        """
         self.clear()
         self._by_path.clear()
         placeholder = self.logo_cache.placeholder(TV_LOGO_SIZE)
         for channel in channels:
             if not channel.url:
                 continue
-            item = QListWidgetItem(channel.name or "Unnamed channel")
+            name = channel.name or "Unnamed channel"
+            note = suffix(channel) if suffix is not None else ""
+            item = QListWidgetItem(
+                f"{name}{self.SOURCE_SEPARATOR}{note}" if note else name)
             item.setData(Qt.ItemDataRole.UserRole, channel)
-            item.setToolTip(channel.name or "")
+            item.setToolTip(f"{name}\n{note}" if note else name)
             pixmap = self.logo_cache.pixmap(channel.logo_path, TV_LOGO_SIZE)
             item.setIcon(pixmap if pixmap is not None else placeholder)
             self.addItem(item)

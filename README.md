@@ -143,6 +143,30 @@ the switch plus size (0.5x–3x) and height, both applying immediately to what i
 height affect text subtitles; bitmap ones ignore them. **F2** lists what the current stream actually
 offers.
 
+## Finding a channel
+
+The box above the channel list filters it as you type; **Ctrl+F** puts the cursor in it, and
+**Escape** clears it.
+
+With more than one provider a **Search all providers** switch appears under it. That searches the
+playlists Winnotix has already downloaded, labels each result with the provider it came from, and
+switches to that provider when you open one. It deliberately does not download anything: a provider
+you have never opened is named as unsearched rather than fetched, since `iptv-org All countries`
+alone is 14 MB. Open it once and it joins the search from then on.
+
+Channels hidden by **Hide channels known to be unplayable** stay hidden here too — a result you
+could not have played is a result that wastes a click.
+
+The Movies and Series grids have the same box over them. Ctrl+F goes to whichever filter the page
+you are on has.
+
+**Searching all providers already covers films and series.** It searches each playlist as
+published, before anything is sorted into tiles, so a title that browses under Movies or Series is
+found by the same box — searching iptv-org for "Gunsmoke" or "Star Trek Movies" returns them even
+though browsing files them under Series and Movies. The exception is an Xtream provider, whose VOD
+and series come from an authenticated API rather than a cached playlist, so nothing there is
+searchable this way.
+
 ## Programme guide
 
 Hypnotix has no guide. It has an EPG box on the Add-provider form that saves what you type and

@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import os
 
+from PySide6.QtCore import Qt
+
 import pytest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -308,6 +310,109 @@ def test_an_empty_message_hides_the_banner(channels_page):
     channels_page.show_message("something")
     channels_page.show_message("")
     assert channels_page.message_label.isHidden()
+
+
+# --------------------------------------------------------------------------
+# The channel filter
+# --------------------------------------------------------------------------
+
+class FakeChannel:
+    def __init__(self, name):
+        self.name = name
+        self.url = f"http://host/{name}"
+        self.logo = None
+        self.logo_path = None
+        self.id = None
+
+
+def test_the_filter_is_on_screen_without_being_asked_for(channels_page):
+    """It used to be a toggle button in the header, which is why nobody found
+    it. Nothing should have to be pressed for it to exist."""
+    assert not channels_page.channel_search.isHidden()
+    assert "Filter" in channels_page.channel_search.placeholderText()
+
+
+def test_typing_filters_the_list(channels_page):
+    channels_page.channel_list.set_channels(
+        [FakeChannel(n) for n in ("BBC One", "BBC Two", "ITV 1")]
+    )
+    assert channels_page.channel_list.filter("bbc") == 2
+    assert channels_page.channel_list.filter("itv") == 1
+    assert channels_page.channel_list.filter("") == 3
+
+
+def test_a_new_list_arrives_unfiltered(channels_page):
+    """A filter left over from the last country would hide most of the next
+    one, with nothing on screen to explain where the channels went."""
+    channels_page.channel_search.setText("bbc")
+    channels_page.clear_filter()
+    assert channels_page.channel_search.text() == ""
+
+
+def test_hiding_the_sidebar_hides_the_filter_with_it(channels_page):
+    """On its own it would filter a list nobody can see."""
+    channels_page.set_sidebar_visible(False)
+    assert channels_page.sidebar.isHidden()
+    channels_page.set_sidebar_visible(True)
+    assert not channels_page.sidebar.isHidden()
+
+
+def test_search_all_is_hidden_until_there_are_two_providers(channels_page):
+    """With one provider it would switch between a list and the same list."""
+    assert channels_page.search_all_check.isHidden()
+    assert channels_page.searching_everywhere is False
+
+    channels_page.set_search_all_available(True)
+    assert not channels_page.search_all_check.isHidden()
+
+
+def test_search_all_survives_the_page_not_being_on_screen(channels_page):
+    """It was read back off isVisible(), which is false whenever another page
+    is showing -- so the search silently turned itself off mid-use."""
+    channels_page.set_search_all_available(True)
+    channels_page.search_all_check.setChecked(True)
+    channels_page.hide()
+
+    assert channels_page.searching_everywhere is True
+
+
+def test_losing_a_provider_unticks_it(channels_page):
+    channels_page.set_search_all_available(True)
+    channels_page.search_all_check.setChecked(True)
+
+    channels_page.set_search_all_available(False)
+    assert channels_page.search_all_check.isChecked() is False
+    assert channels_page.searching_everywhere is False
+
+
+def test_a_result_row_names_the_provider_it_came_from(channels_page):
+    """A name alone is ambiguous when the list is drawn from several playlists."""
+    channel = FakeChannel("BBC One")
+    channel.search_provider = "Free-TV UK"
+    channels_page.channel_list.set_channels(
+        [channel], suffix=lambda c: getattr(c, "search_provider", ""))
+
+    item = channels_page.channel_list.item(0)
+    assert item.text().startswith("BBC One")
+    assert item.text().endswith("Free-TV UK")
+    assert item.data(Qt.ItemDataRole.UserRole) is channel
+
+
+def test_rows_are_unlabelled_without_a_suffix(channels_page):
+    channels_page.channel_list.set_channels([FakeChannel("BBC One")])
+    assert channels_page.channel_list.item(0).text() == "BBC One"
+
+
+def test_the_header_no_longer_carries_a_search(qapp):
+    from winnotix.ui.theme import current_palette
+    from winnotix.ui.widgets import HeaderBar
+
+    header = HeaderBar(current_palette())
+    try:
+        assert not hasattr(header, "search_button")
+        assert not hasattr(header, "search_entry")
+    finally:
+        header.deleteLater()
 
 
 # --------------------------------------------------------------------------
@@ -761,5 +866,99 @@ def test_ordinary_tiles_still_wrap_on_width(qapp):
         rows = sorted({tile.y() for tile in tiles})
         assert len(rows) == 2, "three fit per row at 100px + 10px spacing"
         assert sum(1 for t in tiles if t.y() == rows[0]) == 3
+    finally:
+        host.deleteLater()
+
+
+# --------------------------------------------------------------------------
+# Filtering the poster grid
+# --------------------------------------------------------------------------
+
+class FakeItem:
+    def __init__(self, name):
+        self.name = name
+        self.logo = None
+        self.logo_path = None
+
+
+@pytest.fixture
+def vod_page(qapp):
+    from winnotix.ui.logos import LogoCache
+    from winnotix.ui.pages import VodPage
+    from tests.conftest import FakeSettings
+
+    cache = LogoCache(FakeSettings())
+    page = VodPage(cache)
+    page.resize(900, 460)
+    yield page
+    cache.shutdown()
+    page.deleteLater()
+
+
+TITLES = ["South Park", "Star Trek", "Stargate SG-1", "The Office",
+          "Star Wars: Clone Wars", "Gunsmoke"]
+
+
+def test_the_grid_filters_like_the_list_does(vod_page):
+    vod_page.show_items([FakeItem(name) for name in TITLES], "series")
+
+    assert vod_page.filter("star") == 3
+    assert vod_page.filter("") == len(TITLES)
+
+
+def test_filtered_tiles_close_the_gaps_they_leave(vod_page):
+    """The reason a grid was in doubt: hidden tiles must not hold their place.
+
+    Qt's own layouts treat a hidden widget as empty; the flow layout did not,
+    so a filtered grid would have kept a hole for every tile it hid.
+    """
+    vod_page.show_items([FakeItem(name) for name in TITLES], "series")
+    vod_page.filter("star")
+    # Nothing has painted this page, so ask the layout to run.
+    vod_page.flow_page.flow.activate()
+
+    showing = [tile for _, tile in vod_page._posters if not tile.isHidden()]
+    assert len(showing) == 3
+    # One row, starting at the left margin, evenly spaced.
+    assert len({tile.y() for tile in showing}) == 1
+    assert [tile.x() for tile in showing] == sorted(tile.x() for tile in showing)
+    assert showing[0].x() == 14
+
+
+def test_the_placeholder_names_what_is_being_filtered(vod_page):
+    vod_page.show_items([FakeItem("A")], "movies")
+    assert vod_page.search.placeholderText() == "Filter movies…"
+
+    vod_page.show_items([FakeItem("A")], "series")
+    assert vod_page.search.placeholderText() == "Filter series…"
+
+
+def test_a_new_grid_arrives_unfiltered(vod_page):
+    vod_page.show_items([FakeItem(name) for name in TITLES], "series")
+    vod_page.filter("star")
+
+    vod_page.show_items([FakeItem("Something Else")], "movies")
+    assert vod_page.search.text() == ""
+    assert not vod_page._posters[0][1].isHidden()
+
+
+def test_the_filter_reports_what_it_is_showing(vod_page):
+    seen = []
+    vod_page.filtered.connect(lambda showing, total: seen.append((showing, total)))
+    vod_page.show_items([FakeItem(name) for name in TITLES], "series")
+
+    vod_page.filter("star")
+    assert seen[-1] == (3, 6)
+
+
+def test_a_hidden_widget_takes_no_space_in_the_flow(qapp):
+    first, second, third = tile_widget(), tile_widget(), tile_widget()
+    second.hide()
+    host = flow_fixture(qapp, [first, second, third])
+    try:
+        # Third takes the slot the hidden one would have had, rather than
+        # leaving a hole and starting a column further along.
+        assert third.x() == first.x() + first.width() + 10
+        assert third.y() == first.y()
     finally:
         host.deleteLater()

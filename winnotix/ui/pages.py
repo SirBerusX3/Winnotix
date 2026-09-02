@@ -263,6 +263,27 @@ class ChannelsPage(QWidget):
         self.channel_list.setMinimumWidth(210)
         self.channel_list.channel_activated.connect(self.channel_activated)
 
+        # Sits above the list rather than behind a toggle in the header. A
+        # country list runs to hundreds of rows -- iptv-org's UK is 310 -- and
+        # a filter nobody knows about is one nobody uses. Ctrl+F still focuses
+        # it, but finding it no longer depends on knowing the shortcut.
+        self.channel_search = QLineEdit()
+        self.channel_search.setPlaceholderText("Filter channels…")
+        self.channel_search.setClearButtonEnabled(True)
+
+        # Off by default, and hidden entirely with one provider, where it would
+        # be a switch between a list and the same list.
+        self.search_all_check = QCheckBox("Search all providers")
+        self.search_all_check.setToolTip(
+            "Search the playlists already downloaded for your other providers.\n"
+            "A provider you have never opened is not downloaded to do this."
+        )
+        self.search_all_check.hide()
+        # Availability is tracked rather than read back off the widget:
+        # isVisible() is false whenever this page is not the one on screen,
+        # which would silently turn the feature off while it is in use.
+        self._search_all_available = False
+
         self.name_label = QLabel("")
         self.name_label.setObjectName("ChannelTitle")
         self.url_label = QLabel("")
@@ -305,8 +326,16 @@ class ChannelsPage(QWidget):
         player_layout.addWidget(self.message_label)
         player_layout.addWidget(self.video, 1)
 
+        self.sidebar = QWidget()
+        sidebar_layout = QVBoxLayout(self.sidebar)
+        sidebar_layout.setContentsMargins(8, 8, 0, 0)
+        sidebar_layout.setSpacing(6)
+        sidebar_layout.addWidget(self.channel_search)
+        sidebar_layout.addWidget(self.search_all_check)
+        sidebar_layout.addWidget(self.channel_list, 1)
+
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
-        self.splitter.addWidget(self.channel_list)
+        self.splitter.addWidget(self.sidebar)
         self.splitter.addWidget(player)
         self.splitter.setStretchFactor(1, 1)
         # The sidebar carries two things once a guide is loaded -- the channel
@@ -349,25 +378,96 @@ class ChannelsPage(QWidget):
         self.url_label.setText(channel.url or "")
 
     def set_sidebar_visible(self, visible: bool) -> None:
-        self.channel_list.setVisible(visible)
+        """Hides the filter with the list: on its own it would filter nothing."""
+        self.sidebar.setVisible(visible)
+
+    def set_search_all_available(self, available: bool) -> None:
+        """Hidden with fewer than two providers; unticked when it goes away."""
+        self._search_all_available = available
+        if not available and self.search_all_check.isChecked():
+            self.search_all_check.setChecked(False)
+        self.search_all_check.setVisible(available)
+
+    @property
+    def searching_everywhere(self) -> bool:
+        return self._search_all_available and self.search_all_check.isChecked()
+
+    def clear_filter(self) -> None:
+        """Called when the list is replaced -- a filter left over from the last
+        list would silently hide most of the new one."""
+        self.channel_search.clear()
 
 
-class VodPage(FlowPage):
-    """Movie or series posters."""
+class VodPage(QWidget):
+    """Movie or series posters, with a filter over them.
+
+    A grid filters as well as a list does -- better, if anything, since the
+    tiles reflow to close the gaps rather than leaving a column of holes. The
+    only thing it needed was for the flow layout to skip hidden tiles, which is
+    what Qt's own layouts do anyway.
+
+    Tiles are hidden and shown rather than rebuilt: a routed Movies grid runs to
+    795 posters, and rebuilding that many widgets on every keystroke is the one
+    way to make a filter feel slower than scrolling.
+    """
 
     item_clicked = Signal(object)
+    filtered = Signal(int, int)   # showing, total
 
     def __init__(self, logo_cache, parent=None) -> None:
-        super().__init__(margin=14, spacing=12, parent=parent)
+        super().__init__(parent)
         self.logo_cache = logo_cache
         self._tiles: dict[str, list[QPushButton]] = {}
+        #: Every poster, with the name it is matched on.
+        self._posters: list[tuple[str, QPushButton]] = []
         logo_cache.logo_ready.connect(self._on_logo_ready)
 
-    def show_items(self, items) -> None:
-        self.clear()
+        self.search = QLineEdit()
+        self.search.setPlaceholderText("Filter…")
+        self.search.setClearButtonEnabled(True)
+        self.search.textChanged.connect(self.filter)
+
+        self.flow_page = FlowPage(margin=14, spacing=12)
+
+        top = QHBoxLayout()
+        top.setContentsMargins(14, 10, 14, 0)
+        top.addWidget(self.search)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6)
+        layout.addLayout(top)
+        layout.addWidget(self.flow_page, 1)
+
+    def show_items(self, items, noun: str = "titles") -> None:
+        self.flow_page.clear()
         self._tiles.clear()
+        self._posters.clear()
+        # Cleared without a signal: the box is being reset for a new grid, not
+        # edited by anyone, and letting it filter here would run over a grid
+        # that is still being built.
+        self.search.blockSignals(True)
+        self.search.clear()
+        self.search.blockSignals(False)
+        self.search.setPlaceholderText(f"Filter {noun}…")
         for item in items:
-            self.add(self._poster(item))
+            poster = self._poster(item)
+            self.flow_page.add(poster)
+            self._posters.append(((item.name or "").lower(), poster))
+
+    def filter(self, text: str) -> int:
+        """Hide the posters that do not match; returns how many are showing."""
+        needle = text.strip().lower()
+        showing = 0
+        for name, poster in self._posters:
+            hidden = bool(needle) and needle not in name
+            poster.setHidden(hidden)
+            showing += not hidden
+        # The layout only re-runs when something asks it to, and visibility
+        # changes on children are not something it notices by itself.
+        self.flow_page.flow.invalidate()
+        self.filtered.emit(showing, len(self._posters))
+        return showing
 
     def _poster(self, item) -> QPushButton:
         button = QPushButton()
