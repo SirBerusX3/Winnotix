@@ -281,15 +281,21 @@ results cached for a week. Pressing the menu item again stops a run.
 The failures above announce themselves. A smaller set does not: the stream answers normally and
 plays filler — a takedown notice, or a "watch on our website" slate. Nothing in the response
 distinguishes those, so Winnotix keeps a small blocklist in `resources/blocklist.json` and hides
-matching entries. It currently covers Pluto TV, which serves a takedown notice for every entry in
-the default playlist.
+matching entries.
 
-Pluto needs two rules, not one. Free-TV links its stitcher directly, so a `.pluto.tv` host rule
-catches those — but iptv-org links through a redirector, `jmp2.uk`, and a host rule matches the URL
-as written rather than where it lands. That accounts for **2,342 of the 14,307 entries** in
-iptv-org's combined playlist; a sample of 60 resolved 59 to `stitcher-ipv4.pluto.tv` and none
-anywhere else, so the redirector is blocked by host too. Resolving thousands of URLs at load time to
-find this out would be far more expensive than naming the host.
+**Every rule it ships with is currently switched off.** The blocklist was written for Pluto TV,
+which on 31 August 2026 served a ~25-second takedown notice in place of every stream: each sampled
+entry returned a manifest whose segments were named `ptv_takedownslates`. Pluto restored
+third-party access two days later — a fresh sample of 53, followed through to the media playlists,
+returned real segments and no slates — so both rules are retired. They are kept rather than
+deleted, with their evidence, because the block could return and re-enabling is a one-word edit.
+
+Pluto took two rules, which is worth recording for the next one. Free-TV links its stitcher
+directly, so a `.pluto.tv` host rule catches those; iptv-org links through a redirector, `jmp2.uk`,
+and a host rule matches the URL as written rather than where it lands. That accounted for
+**2,342 of the 14,307 entries** in iptv-org's combined playlist — the reason retiring the rules
+returns so many channels. Resolving thousands of URLs at load time to find out where they land
+would be far more expensive than naming the host.
 
 Turn it off in Preferences, or add your own rules in `blocklist.json` inside `%APPDATA%\Winnotix`:
 

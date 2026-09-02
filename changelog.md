@@ -14,6 +14,23 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
 
 ### Added
 
+- **Pluto TV is unblocked: 2,342 channels back, and Series goes from 157 to 558**
+  (`resources/blocklist.json`). Both Pluto rules said in their own notes to retire them if Pluto
+  restored third-party stitcher access. It has. On 31 August every sampled entry returned an HLS
+  manifest whose segments were named `ptv_takedownslates`; today a fresh sample of 53 — 13 targeted
+  and 40 random, following each master manifest through to its media playlist — returned real
+  `hls_*.ts` segments, with no slates at all. Reported from use before it was measured.
+  - **The two sources link Pluto identically**, which was worth checking since one appeared to work
+    and the other not: both go through `jmp2.uk` to `stitcher-ipv4.pluto.tv`. Free-TV has 8 such
+    entries, iptv-org 2,342. Nothing about the links differs — what changed is Pluto.
+  - The effect on `iptv-org All countries`: 11,239 TV channels become 12,957, Movies 572 → 795,
+    Series 157 → 558. Most of what iptv-org classifies as series was always Pluto, which is why
+    that tile gains the most.
+  - **Retired, not deleted.** The takedown lasted two days and could return; the rules keep their
+    evidence and re-enabling one is a one-word edit. The tests that pinned "Pluto is blocked" now
+    pin "Pluto is not blocked, and the rules would still match if switched back on" — so a rule
+    cannot rot silently while it is off.
+
 - **The Movies and Series grids filter too** (`winnotix/ui/pages.py`, `winnotix/ui/flow_layout.py`).
   A grid filters as well as a list does — better, since the tiles reflow to close the gaps instead
   of leaving a column of holes. It needed one thing: the flow layout now treats a hidden tile as

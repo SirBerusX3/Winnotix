@@ -17,17 +17,17 @@
       "id": "pluto-tv-takedown",
       "reason": "Pluto TV serves a ~25s takedown notice instead of the stream",
       "host_suffix": ".pluto.tv",
-      "verified": "2026-08-31",
-      "notes": "Every sampled entry across all groups returned an HLS manifest whose segments are named 'ptv_takedownslates'. Affects live channels as well as VOD. Remove this rule if Pluto restores third-party stitcher access.",
-      "enabled": true
+      "verified": "2026-09-02",
+      "notes": "RETIRED 2026-09-02: Pluto restored third-party stitcher access, which is the condition this rule named for its own removal. On 2026-08-31 every sampled entry returned an HLS manifest whose segments were named 'ptv_takedownslates'; on 2026-09-02 a fresh sample of 53 (13 targeted, 40 random) returned real 'hls_*.ts' segments and no slates at all. Kept, disabled, rather than deleted: the takedown lasted two days and could return, and re-enabling is a one-word edit.",
+      "enabled": false
     },
     {
       "id": "pluto-tv-redirector",
       "reason": "Pluto TV behind a redirector, same takedown notice",
       "host_suffix": ".jmp2.uk",
-      "verified": "2026-09-01",
-      "notes": "iptv-org does not link to Pluto directly -- it links to the jmp2.uk redirector, which lands on stitcher-ipv4.pluto.tv. The host_suffix rule above matches the URL as written and so never sees these. 2,342 of the 14,307 entries in index.country.m3u go through it (16%); a random sample of 60 resolved 59 to stitcher-ipv4.pluto.tv and one to an HTTP error, none anywhere else. Blocking the redirector by host avoids resolving thousands of URLs at load time. Retire this with the rule above if Pluto restores third-party stitcher access.",
-      "enabled": true
+      "verified": "2026-09-02",
+      "notes": "RETIRED 2026-09-02 with the rule above, and for the same reason: the streams behind this redirector play their real content again. It was blocking 2,342 of the 14,307 entries in index.country.m3u, so retiring it returns 16% of the largest bundled playlist. The original finding stands as written: iptv-org does not link to Pluto directly -- it links to the jmp2.uk redirector, which lands on stitcher-ipv4.pluto.tv. The host_suffix rule above matches the URL as written and so never sees these. 2,342 of the 14,307 entries in index.country.m3u go through it (16%); a random sample of 60 resolved 59 to stitcher-ipv4.pluto.tv and one to an HTTP error, none anywhere else. Blocking the redirector by host avoids resolving thousands of URLs at load time.",
+      "enabled": false
     }
   ]
 }

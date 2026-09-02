@@ -6,10 +6,10 @@ import json
 
 import pytest
 
-from winnotix.core.common import Provider
+from winnotix.core.common import Manager, Provider
 from winnotix.core.filters import Blocklist, FilterResult, Rule
 
-from .conftest import write_m3u
+from .conftest import FakeSettings, write_m3u
 
 
 PLUTO_URL = (
@@ -213,47 +213,71 @@ def test_summary_names_the_reason(manager, tmp_path, providers_dir, pluto_rule):
 # Loading
 # --------------------------------------------------------------------------
 
-def test_shipped_blocklist_loads_and_covers_pluto(tmp_path):
-    """The rule that ships with the app must actually match real Pluto URLs.
+def shipped(tmp_path):
+    """The bundled blocklist, with the developer's own rules kept out of it."""
+    return Blocklist.load(user=tmp_path / "no-user-rules.json")
 
-    `user` points at a nonexistent path so the developer's own blocklist cannot
-    influence the result.
+
+def test_the_pluto_rules_are_retired_but_not_deleted(tmp_path):
+    """Pluto restored third-party stitcher access on 2026-09-02.
+
+    That is the condition both rules named for their own removal. A sample of
+    53 entries that had served 'ptv_takedownslates' two days earlier returned
+    real 'hls_*.ts' segments and no slates at all, so the rules are off. They
+    are kept rather than deleted because the takedown lasted two days and could
+    come back -- and because a rule that names its evidence is worth keeping
+    even when it is not firing.
     """
-    blocklist = Blocklist.load(user=tmp_path / "no-user-rules.json")
-    assert blocklist.rules, "the bundled blocklist should not be empty"
+    blocklist = shipped(tmp_path)
+    rules = {rule.id: rule for rule in blocklist.rules}
 
-    matched = blocklist.match(PLUTO_URL)
-    assert matched is not None
-    assert matched.id == "pluto-tv-takedown"
-    assert matched.reason
+    assert set(rules) >= {"pluto-tv-takedown", "pluto-tv-redirector"}
+    assert not any(rules[name].enabled
+                   for name in ("pluto-tv-takedown", "pluto-tv-redirector"))
 
+    # So Pluto plays again, by both routes.
+    assert blocklist.match(PLUTO_URL) is None
+    assert blocklist.match(PLUTO_REDIRECT_URL) is None
+    assert blocklist.match("https://jmp2.uk/plu-abc123") is None
+
+
+def test_the_retired_rules_would_still_match_if_switched_back_on(tmp_path):
+    """Re-enabling has to be a one-word edit, so the matching has to still be
+    right: retiring a rule must not quietly rot the thing it matches on."""
+    blocklist = shipped(tmp_path)
+    revived = Blocklist([
+        Rule(id=rule.id, reason=rule.reason, host_suffix=rule.host_suffix,
+             url_regex=rule.url_regex, enabled=True)
+        for rule in blocklist.rules
+    ])
+
+    assert revived.match(PLUTO_URL).id == "pluto-tv-takedown"
+    assert revived.match(PLUTO_REDIRECT_URL).id == "pluto-tv-redirector"
     # Both real Pluto hosts seen in the Free-TV playlist.
-    assert blocklist.match(
+    assert revived.match(
         "https://service-stitcher.clusters.pluto.tv/v1/stitch/embed/hls/c/m.m3u8")
-    assert blocklist.match(
+    assert revived.match(
         "https://cfd-v4-service-channel-stitcher-use1-1.prd.pluto.tv/x.m3u8")
+    # Still no substring matching, the way ".pluto.tv" must not match notpluto.tv.
+    assert revived.match("https://notjmp2.uk/stream.m3u8") is None
+    assert revived.match("https://example.com/jmp2.uk/x.m3u8") is None
+    assert revived.match("https://tv.a2news.com/live/smil:x.smil/playlist.m3u8") is None
 
 
-def test_shipped_blocklist_covers_the_pluto_redirector(tmp_path):
-    """iptv-org links Pluto through jmp2.uk, which the .pluto.tv rule misses.
+def test_nothing_is_filtered_while_every_rule_is_off(tmp_path, providers_dir):
+    """The shipped state today: a playlist passes through untouched."""
+    provider = Provider(name=None, provider_info="p:::url:::http://x:::::::::")
+    provider.path = str(write_m3u(tmp_path / "p.m3u", """
+#EXTINF:-1 group-title="News",Pluto Something
+https://jmp2.uk/plu-abc123
+#EXTINF:-1 group-title="News",Ordinary
+http://host/ok
+"""))
+    Manager(FakeSettings()).load_channels(provider)
 
-    2,342 of the 14,307 entries in index.country.m3u are this shape, so without
-    a rule for the redirector itself the largest bundled playlist ships 16%
-    takedown slates presented as ordinary channels.
-    """
-    blocklist = Blocklist.load(user=tmp_path / "no-user-rules.json")
-
-    matched = blocklist.match(PLUTO_REDIRECT_URL)
-    assert matched is not None
-    assert matched.id == "pluto-tv-redirector"
-
-    # The bare host is what the playlist actually carries.
-    assert blocklist.match("https://jmp2.uk/plu-abc123")
-    # Must not match by substring, the way ".pluto.tv" must not match notpluto.tv.
-    assert blocklist.match("https://notjmp2.uk/stream.m3u8") is None
-    assert blocklist.match("https://example.com/jmp2.uk/x.m3u8") is None
-    # And nothing else.
-    assert blocklist.match("https://tv.a2news.com/live/smil:x.smil/playlist.m3u8") is None
+    result = shipped(tmp_path).apply(provider)
+    assert result.removed == 0
+    assert len(provider.channels) == 2
 
 
 def test_user_rules_are_merged(tmp_path):
