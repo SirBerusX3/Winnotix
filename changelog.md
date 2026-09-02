@@ -2,15 +2,19 @@
 
 All notable changes to Winnotix are recorded here.
 
-Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-Versioning will follow [Semantic Versioning](https://semver.org/) once there is a release to version.
+Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
+[Semantic Versioning](https://semver.org/).
 
 Winnotix is a Windows port of [Hypnotix](https://github.com/linuxmint/hypnotix) by Linux Mint,
 forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
 
 ---
 
-## [Unreleased]
+## [0.1.0] - 2026-09-02
+
+First release. Everything below was built during the port; it is grouped as one
+version rather than invented history, because there was no earlier release to
+diff against.
 
 ### Added
 
@@ -154,27 +158,6 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
     not to bitmap DVB ones.
   - The settings shim gains `get_double`/`set_double` and `get_int`/`set_int` — real
     `Gio.Settings` method names, so it keeps its shape rather than growing a bespoke API.
-
-### Fixed
-
-- **Every explanatory hint on the Preferences page was clipped mid-sentence.** A word-wrapped
-  `QLabel` reports a size hint computed for a width it does not get, and a `QVBoxLayout` believes
-  it, so the last line or two of each explanation was cut off — the blocklist hint lost "add your
-  own rules…", the logo hint lost its off-switch sentence. Pre-existing; adding three more hints
-  made it obvious. Fixed in two parts, because the first was not enough: the size policy has to ask
-  for `heightForWidth` at all, and the measurement has to use the width the label really has, since
-  measuring against the column's maximum under-counts once margins are removed.
-
-
----
-
-## [0.1.0] - 2026-09-01
-
-First release. Everything below was built during the port; it is grouped as one
-version rather than invented history, because there was no earlier release to
-diff against.
-
-### Added
 
 - **A signing step in `build.py package`, and a refusal to distribute without it.** Roadmap §11
   asked for signing "as a step after COLLECT, so an unsigned build is never what gets distributed
@@ -705,6 +688,14 @@ diff against.
   `hypnotix/` pinned as a submodule at `0e0fa1c`.
 
 ### Fixed
+
+- **Every explanatory hint on the Preferences page was clipped mid-sentence.** A word-wrapped
+  `QLabel` reports a size hint computed for a width it does not get, and a `QVBoxLayout` believes
+  it, so the last line or two of each explanation was cut off — the blocklist hint lost "add your
+  own rules…", the logo hint lost its off-switch sentence. Pre-existing; adding three more hints
+  made it obvious. Fixed in two parts, because the first was not enough: the size policy has to ask
+  for `heightForWidth` at all, and the measurement has to use the width the label really has, since
+  measuring against the column's maximum under-counts once margins are removed.
 
 - **The sidebar stylesheet painted over per-row colours.** `QListWidget#Sidebar::item` set
   `color`, and a stylesheet colour beats `QListWidgetItem.setForeground()` — so the channel check

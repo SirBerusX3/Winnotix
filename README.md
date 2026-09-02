@@ -18,6 +18,34 @@ one-folder app. The one deliberate omission is translation — the reasoning is 
 Hypnotix is excellent and Linux-only. The IPTV logic is portable Python; only the GTK3 application
 shell is tied to Linux. Winnotix keeps the former and replaces the latter.
 
+## Download
+
+Get **Winnotix-portable.zip** from the [latest release](https://github.com/SirBerusX3/Winnotix/releases/latest),
+unblock it (right-click → Properties → **Unblock**, or Windows keeps the files marked as
+downloaded), extract it anywhere, and run `Winnotix.exe`. There is no installer, and nothing is
+written outside the folder except your own settings:
+
+```
+%APPDATA%\Winnotix\          settings.json and favourites
+%LOCALAPPDATA%\Winnotix\     cached playlists, logos and yt-dlp
+```
+
+To uninstall, delete the folder — and those two directories if you want your settings gone too.
+
+### Windows will warn you about this build
+
+**Winnotix is not code-signed yet, so SmartScreen will say "Windows protected your PC" and name an
+unknown publisher.** Choose **More info → Run anyway** if you want to proceed. Some antivirus
+software may also quarantine it on sight.
+
+That warning is about provenance, not content: an unsigned executable is one Windows cannot trace
+to a named publisher, and PyInstaller output — self-extracting, bundling a Python interpreter —
+is a shape heuristics already dislike whatever it contains. A certificate is the only real fix, and
+[SignPath Foundation](https://signpath.org/), who sign open-source projects for free, require a
+project to be released before they will consider it. So this release is the application, and
+signing follows it rather than preceding it. Until then, the alternative to trusting the binary is
+running from source, below — the same code, built on your own machine.
+
 ## Running from source
 
 Requires Python 3.12+ (developed on 3.14) and 7-Zip (only to unpack libmpv).
