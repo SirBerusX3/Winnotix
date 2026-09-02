@@ -28,8 +28,25 @@ DEFAULTS: dict[str, Any] = {
     "user-agent": "Mozilla/5.0",
     "http-referer": "",
     "active-provider": "Free-TV",
+    # Two providers, where upstream's schema has one. The deliberate divergence
+    # from `org.x.hypnotix`, and the only one among the upstream keys.
+    #
+    # Free-TV alone is what a new install used to get, and it publishes almost
+    # no metadata: no categories, so the Movies and Series tiles stay empty, and
+    # 9 series across its whole 2,053-entry catalogue. iptv-org's combined
+    # playlist is 14,310 channels with categories and guides. Leaving it out
+    # meant a new user had to find it through Browse country playlists, where
+    # nothing had told them to look -- and with one provider, searching across
+    # providers has nothing to search.
+    #
+    # It costs nothing until it is opened: only the active provider loads at
+    # startup, and that stays Free-TV, whose playlist is 550 KB against
+    # iptv-org's 14 MB. The name matches what the picker would have called it
+    # (catalogue.CatalogueEntry.provider_name), so adding it from there finds
+    # this one already present rather than making a second copy.
     "providers": [
-        "Free-TV:::url:::https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8:::::::::"
+        "Free-TV:::url:::https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8:::::::::",
+        "iptv-org All countries:::url:::https://iptv-org.github.io/iptv/index.country.m3u:::::::::",
     ],
     "use-local-ytdlp": False,
     # Not part of upstream's schema -- see WINNOTIX_KEYS below.

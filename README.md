@@ -96,8 +96,16 @@ five places, all documented in its header.
 
 ## Playlists
 
-The default provider is the combined [Free-TV/IPTV](https://github.com/Free-TV/IPTV) playlist —
-about 2,000 channels, fetched live, so it stays current on its own.
+Two providers ship configured. The combined [Free-TV/IPTV](https://github.com/Free-TV/IPTV)
+playlist — about 2,000 channels — is the one that opens, and
+[iptv-org](https://github.com/iptv-org/iptv)'s combined playlist — 14,310 channels, with categories
+and programme guides Free-TV does not publish — sits alongside it. Both are fetched live, so they
+stay current on their own, and the second is not downloaded until you open it: only the active
+provider loads at startup, and iptv-org's playlist is 14 MB against Free-TV's 550 KB.
+
+This is the one place Winnotix departs from upstream Hypnotix's settings defaults. Hypnotix ships
+Free-TV alone, and Free-TV publishes no categories — so the Movies and Series tiles start empty,
+and searching across providers has nothing to search.
 
 **Providers → Browse country playlists** lists 282 more from two sources, with flags and channel
 counts. Picking one adds it as an ordinary provider. Each source's playlists sit under a heading

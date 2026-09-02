@@ -36,7 +36,8 @@ def test_defaults_match_the_upstream_gschema(settings):
     """These six keys are org.x.hypnotix. Drifting from them breaks parity.
 
     Winnotix-only keys are listed separately in WINNOTIX_KEYS, so adding one is
-    a deliberate act rather than accidental drift from upstream.
+    a deliberate act rather than accidental drift from upstream. `providers` is
+    the one upstream *value* that deliberately differs -- see below.
     """
     assert UPSTREAM_KEYS == {
         "mpv-options",
@@ -52,7 +53,33 @@ def test_defaults_match_the_upstream_gschema(settings):
     assert settings.get_string("http-referer") == ""
     assert settings.get_string("active-provider") == "Free-TV"
     assert settings.get_boolean("use-local-ytdlp") is False
-    assert len(settings.get_strv("providers")) == 1
+
+
+def test_two_providers_ship_by_default(settings):
+    """The one upstream value Winnotix deliberately differs on.
+
+    Upstream ships Free-TV alone, which publishes no categories -- so the Movies
+    and Series tiles start empty, and searching across providers has nothing to
+    search. iptv-org's combined playlist rides along unopened: only the active
+    provider loads at startup, and that is still Free-TV.
+    """
+    providers = settings.get_strv("providers")
+    assert len(providers) == 2
+    assert [p.split(":::")[0] for p in providers] == [
+        "Free-TV", "iptv-org All countries"]
+    assert settings.get_string("active-provider") == "Free-TV"
+
+
+def test_the_default_providers_are_named_as_the_picker_would_name_them(settings):
+    """Otherwise adding one from Browse country playlists makes a second copy
+    of a provider that is already there."""
+    from winnotix.core import catalogue
+
+    combined = {e.provider_name: e.url for e in catalogue.load() if e.combined}
+    for entry in settings.get_strv("providers"):
+        name, _type, url = entry.split(":::")[:3]
+        if name in combined:
+            assert combined[name] == url
 
 
 def test_unplayable_streams_are_hidden_by_default(settings):
@@ -87,8 +114,9 @@ def test_strv_round_trip(settings):
 def test_strv_returns_a_copy_not_the_live_list(settings):
     """Mutating a returned list must not corrupt stored state."""
     got = settings.get_strv("providers")
+    before = len(got)
     got.append("injected")
-    assert len(settings.get_strv("providers")) == 1
+    assert len(settings.get_strv("providers")) == before
 
 
 def test_reset_restores_the_schema_default(settings):
@@ -103,7 +131,8 @@ def test_reset_does_not_alias_the_defaults_dict(settings):
     settings.get_strv("providers").append("x")
     settings.set_strv("providers", settings.get_strv("providers") + ["y"])
     assert DEFAULTS["providers"] == [
-        "Free-TV:::url:::https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8:::::::::"
+        "Free-TV:::url:::https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8:::::::::",
+        "iptv-org All countries:::url:::https://iptv-org.github.io/iptv/index.country.m3u:::::::::",
     ]
 
 

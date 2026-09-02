@@ -14,6 +14,21 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
 
 ### Added
 
+- **A second provider ships configured** (`winnotix/core/settings.py`). A new install opened with
+  Free-TV alone, which publishes no categories: the Movies and Series tiles started empty, "Search
+  all providers" hid itself for want of a second provider, and iptv-org existed only as an index
+  you had to find through Browse country playlists. Reported three times over, in three different
+  shapes, before the cause was the same each time.
+  - **It costs nothing until it is opened.** Only the active provider loads at startup and that is
+    still Free-TV, so a first run downloads 538 KB exactly as before — measured by driving a
+    genuinely fresh profile, not assumed. iptv-org's 14 MB is fetched the first time it is opened.
+  - **The name matches what the picker would have called it**, so adding *All countries* from
+    Browse country playlists finds the provider already present instead of making a second copy.
+  - **This is the one upstream value Winnotix deliberately differs on.** `providers` is one of the
+    six `org.x.hypnotix` keys and every other default still matches upstream exactly; the test that
+    pins schema fidelity now names this as a deliberate divergence rather than letting it read as
+    drift.
+
 - **Pluto TV is unblocked: 2,342 channels back, and Series goes from 157 to 558**
   (`resources/blocklist.json`). Both Pluto rules said in their own notes to retire them if Pluto
   restored third-party stitcher access. It has. On 31 August every sampled entry returned an HLS
