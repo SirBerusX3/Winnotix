@@ -71,6 +71,14 @@ DARK = Palette(
 )
 
 
+#: What the `theme` setting may hold, and what each shows in Preferences.
+THEME_CHOICES = (
+    ("system", "Follow Windows"),
+    ("light", "Light"),
+    ("dark", "Dark"),
+)
+
+
 def current_palette() -> Palette:
     """Follow the OS light/dark preference."""
     try:
@@ -78,6 +86,20 @@ def current_palette() -> Palette:
     except (AttributeError, RuntimeError):
         return LIGHT
     return DARK if scheme == Qt.ColorScheme.Dark else LIGHT
+
+
+def palette_for(choice: str) -> Palette:
+    """The palette a `theme` setting asks for.
+
+    An unknown value follows Windows rather than failing: the setting is a
+    string in a JSON file a user may edit, and the OS preference is the safe
+    reading of anything unrecognised.
+    """
+    if choice == "light":
+        return LIGHT
+    if choice == "dark":
+        return DARK
+    return current_palette()
 
 
 def stylesheet(p: Palette) -> str:

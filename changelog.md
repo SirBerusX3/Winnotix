@@ -10,6 +10,38 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **The theme changes without a restart, and can be chosen** (Preferences → Appearance,
+  `winnotix/ui/theme.py`). Changing the Windows colour mode did nothing until the app was
+  restarted, because the palette was read once at startup. Reported from use.
+  - **Follow Windows / Light / Dark.** Following Windows is still the default and is still what
+    the app did before. The overrides are worth having on their own: Windows applies its colour
+    mode to apps and to its own shell separately, and a screenshot sometimes needs one specific
+    theme.
+  - **A stylesheet swap was not enough**, which is why this is more than a line. Icons are
+    *rendered* in a colour rather than loaded ready-coloured, so every one on screen is invalidated
+    by a palette change, and the channel list sets some colours on itself rather than through the
+    stylesheet. Each widget that draws an icon now records which one it drew, so a single walk
+    redraws them all — including the ones whose icon depends on state, the pause button and the
+    favourite star, which have to come back as play or as a filled star rather than reverting.
+  - **Following Windows live costs one connection**, `QStyleHints.colorSchemeChanged`, because the
+    machinery a manual toggle needs is the same machinery. An explicit Light or Dark is not
+    overruled when Windows changes underneath it.
+  - Rows a channel check dimmed are re-dimmed rather than left in the old palette's grey: the
+    verdicts are kept so the colour can be re-applied, since they cannot be recomputed without
+    asking every server again.
+
+### Changed
+
+- **The screenshot in the README shows the app playing**, from a file the repository serves itself
+  rather than a third-party image host, and both themes at once. The previous one predated the
+  Pluto change and advertised numbers the README's own blocklist section contradicted.
+
+---
+
 ## [0.1.0] - 2026-09-02
 
 First release. Everything below was built during the port; it is grouped as one

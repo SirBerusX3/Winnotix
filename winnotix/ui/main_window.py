@@ -42,7 +42,7 @@ from ..core.settings import DEFAULTS, SettingsShim
 from ..core import mpvlog, paths, streamcheck, xtream_loader
 from . import pages as P
 from .logos import LogoCache
-from .theme import current_palette, stylesheet
+from .theme import palette_for, stylesheet
 from .widgets import HeaderBar, StatusBar
 
 mpv = mpvloader.load_mpv()
@@ -85,10 +85,20 @@ class MainWindow(QMainWindow):
         self.resize(1200, 720)
         self.setMinimumSize(880, 560)
 
-        self.palette_ = current_palette()
-        self.setStyleSheet(stylesheet(self.palette_))
-
+        # Settings first: the theme is one of them, and the stylesheet cannot
+        # be chosen before the choice has been read.
         self.settings = SettingsShim()
+        self.palette_ = palette_for(self.settings.get_string("theme"))
+        self.setStyleSheet(stylesheet(self.palette_))
+        # Windows can change its app colour mode while we are running, and the
+        # app used to need restarting to notice. Qt says so; following it is one
+        # connection, and the same retheme serves the manual override.
+        try:
+            QGuiApplication.styleHints().colorSchemeChanged.connect(
+                self._on_system_theme_changed)
+        except (AttributeError, RuntimeError):
+            pass    # an older Qt, or no GUI: the setting still works
+
         self.manager = Manager(self.settings)
         # Before anything constructs mpv: this decides which yt-dlp is on PATH,
         # and mpv's ytdl_hook resolves the binary by name from there.
@@ -1209,6 +1219,43 @@ class MainWindow(QMainWindow):
         self.settings.set_string(key, value)
         if key == "mpv-options":
             self.status.set_status("MPV options will apply the next time Winnotix starts.")
+        elif key == "theme":
+            self.apply_theme()
+
+    # ------------------------------------------------------------------
+    # Theme
+    # ------------------------------------------------------------------
+
+    def _on_system_theme_changed(self, _scheme=None) -> None:
+        """Windows changed its app colour mode while we were running.
+
+        Only worth acting on while the setting follows Windows; an explicit
+        Light or Dark is a decision the OS does not get to overrule.
+        """
+        if self.settings.get_string("theme") == "system":
+            self.apply_theme()
+
+    def apply_theme(self) -> None:
+        """Re-apply the palette everywhere, without a restart.
+
+        The stylesheet carries most of it, but not all: icons are *rendered* in
+        a colour rather than loaded ready-coloured, and the channel list sets
+        some colours on itself. Each page that holds a palette knows how to
+        re-apply its own, which is why this is a short method rather than a
+        rebuild of the window.
+        """
+        palette = palette_for(self.settings.get_string("theme"))
+        if palette == self.palette_:
+            return
+        self.palette_ = palette
+        self.setStyleSheet(stylesheet(palette))
+        for part in (self.header, self.status, self.landing, self.channels,
+                     self.providers_page):
+            part.retheme(palette)
+        # The provider cards are rebuilt from scratch, icons and all, so they
+        # only need redrawing if that page is the one on screen.
+        if self.stack.currentWidget() is self.pages[PROVIDERS]:
+            self.show_providers()
 
     def _on_number_setting_changed(self, key: str, value: float) -> None:
         if key == "subtitle-position":

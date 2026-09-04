@@ -44,13 +44,43 @@ def separator(orientation: Qt.Orientation = Qt.Orientation.Horizontal) -> QFrame
 def tool_button(icon_name: str, tooltip: str, palette: Palette,
                 checkable: bool = False, size: int = 20) -> QToolButton:
     button = QToolButton()
-    button.setIcon(icons.icon(icon_name, palette.icon, size))
     button.setIconSize(QSize(size, size))
     button.setToolTip(tooltip)
     button.setCheckable(checkable)
     button.setCursor(Qt.CursorShape.PointingHandCursor)
     button.setAutoRaise(True)
-    return button
+    return remember_icon(button, icon_name, palette, size)
+
+
+def remember_icon(widget, icon_name: str, palette: Palette, size: int = 20):
+    """Draw an icon and record which one, so a theme change can redraw it.
+
+    Icons are rendered in a colour rather than loaded ready-coloured, so a
+    palette change invalidates every one on screen. Recording the name on the
+    widget means `restyle_icons` can find them all without every call site
+    keeping its own bookkeeping -- and a widget whose icon depends on state,
+    like the pause button or the favourite star, only has to keep this in step
+    with itself.
+    """
+    widget.themed_icon = (icon_name, size)
+    widget.setIcon(icons.icon(icon_name, palette.icon, size))
+    return widget
+
+
+def restyle_icons(root, palette: Palette) -> int:
+    """Redraw every remembered icon under `root`; returns how many."""
+    candidates = [root, *root.findChildren(QWidget)]
+    if isinstance(root, QWidget):
+        candidates += [a for a in root.findChildren(QAction) if hasattr(a, "themed_icon")]
+    redrawn = 0
+    for widget in candidates:
+        remembered = getattr(widget, "themed_icon", None)
+        if remembered is None:
+            continue
+        name, size = remembered
+        widget.setIcon(icons.icon(name, palette.icon, size))
+        redrawn += 1
+    return redrawn
 
 
 class HeaderBar(QWidget):
@@ -113,12 +143,17 @@ class HeaderBar(QWidget):
 
     def add_menu_action(self, text: str, icon_name: str, shortcut: str,
                         handler) -> QAction:
-        action = QAction(icons.icon(icon_name, self._palette.icon), text, self)
+        action = QAction(text, self)
+        remember_icon(action, icon_name, self._palette)
         if shortcut:
             action.setShortcut(shortcut)
         action.triggered.connect(handler)
         self.menu.addAction(action)
         return action
+
+    def retheme(self, palette: Palette) -> None:
+        self._palette = palette
+        restyle_icons(self, palette)
 
 
 class StatusBar(QWidget):
@@ -179,10 +214,13 @@ class StatusBar(QWidget):
             self.playback_bar.hide()
 
     def set_paused(self, paused: bool) -> None:
-        self.pause_button.setIcon(
-            icons.icon("play" if paused else "pause", self._palette.icon, 18)
-        )
+        remember_icon(self.pause_button, "play" if paused else "pause",
+                      self._palette, 18)
         self.pause_button.setToolTip("Resume" if paused else "Pause")
+
+    def retheme(self, palette: Palette) -> None:
+        self._palette = palette
+        restyle_icons(self, palette)
 
 
 class Tile(QPushButton):
@@ -280,16 +318,12 @@ class ChannelList(QListWidget):
         self.setObjectName("Sidebar")
         self.logo_cache = logo_cache
         self._palette = palette
+        # Kept so a theme change can re-dim the rows a check marked: the dim
+        # colour comes from the palette, and the verdicts are not recomputable
+        # without asking every server again.
+        self._health_lookup = None
 
-        # Mirrors the stylesheet on the widget palette. Redundant while the
-        # stylesheet is applied, but it keeps the list readable if it is ever
-        # shown without one (tests, or a future style that ignores ::item rules).
-        widget_palette = self.palette()
-        widget_palette.setColor(QPalette.ColorRole.Base, QColor(palette.surface))
-        widget_palette.setColor(QPalette.ColorRole.Text, QColor(palette.text))
-        widget_palette.setColor(QPalette.ColorRole.Highlight, QColor(palette.selection))
-        widget_palette.setColor(QPalette.ColorRole.HighlightedText, QColor(palette.text))
-        self.setPalette(widget_palette)
+        self._apply_widget_palette(palette)
 
         self.setIconSize(TV_LOGO_SIZE)
         self.setUniformItemSizes(True)
@@ -301,6 +335,20 @@ class ChannelList(QListWidget):
         self.verticalScrollBar().valueChanged.connect(self._request_visible_logos)
         self._by_path: dict[str, list[QListWidgetItem]] = {}
         logo_cache.logo_ready.connect(self._on_logo_ready)
+
+    def _apply_widget_palette(self, palette: Palette) -> None:
+        """Mirrors the stylesheet on the widget palette.
+
+        Redundant while the stylesheet is applied, but it keeps the list
+        readable if it is ever shown without one (tests, or a future style that
+        ignores ::item rules).
+        """
+        widget_palette = self.palette()
+        widget_palette.setColor(QPalette.ColorRole.Base, QColor(palette.surface))
+        widget_palette.setColor(QPalette.ColorRole.Text, QColor(palette.text))
+        widget_palette.setColor(QPalette.ColorRole.Highlight, QColor(palette.selection))
+        widget_palette.setColor(QPalette.ColorRole.HighlightedText, QColor(palette.text))
+        self.setPalette(widget_palette)
 
     #: Between a channel name and the provider it came from.
     SOURCE_SEPARATOR = "   —   "
@@ -384,6 +432,7 @@ class ChannelList(QListWidget):
 
         `lookup` returns a health Result or None for "not checked".
         """
+        self._health_lookup = lookup
         marked = 0
         for index in range(self.count()):
             item = self.item(index)
@@ -400,6 +449,13 @@ class ChannelList(QListWidget):
             existing = item.toolTip() or (channel.name or "")
             item.setToolTip(f"{existing}\n\n{detail}")
         return marked
+
+    def retheme(self, palette: Palette) -> None:
+        """Re-apply the colours this list sets itself rather than by stylesheet."""
+        self._palette = palette
+        self._apply_widget_palette(palette)
+        if self._health_lookup is not None:
+            self.apply_health(self._health_lookup)
 
     def visible_count(self) -> int:
         return sum(1 for i in range(self.count()) if not self.item(i).isHidden())

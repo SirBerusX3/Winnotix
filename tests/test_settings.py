@@ -82,6 +82,15 @@ def test_the_default_providers_are_named_as_the_picker_would_name_them(settings)
             assert combined[name] == url
 
 
+def test_the_theme_follows_windows_by_default(settings):
+    """Which is what the app did before the setting existed."""
+    from winnotix.ui.theme import THEME_CHOICES
+
+    assert settings.get_string("theme") == "system"
+    assert "theme" in WINNOTIX_KEYS
+    assert settings.get_string("theme") in [value for value, _ in THEME_CHOICES]
+
+
 def test_unplayable_streams_are_hidden_by_default(settings):
     """Most users want the takedown-slate streams gone without configuring it."""
     assert settings.get_boolean("hide-unplayable") is True

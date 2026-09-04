@@ -11,6 +11,7 @@ from __future__ import annotations
 import os
 
 from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QToolButton
 
 import pytest
 
@@ -962,3 +963,126 @@ def test_a_hidden_widget_takes_no_space_in_the_flow(qapp):
         assert third.y() == first.y()
     finally:
         host.deleteLater()
+
+
+# --------------------------------------------------------------------------
+# Changing theme without a restart
+# --------------------------------------------------------------------------
+
+def icon_pixels(widget):
+    """The bytes of a widget's icon, so a recolour is observable."""
+    from PySide6.QtCore import QSize
+
+    return bytes(widget.icon().pixmap(QSize(20, 20)).toImage().constBits())
+
+
+def test_palette_for_maps_the_setting(qapp):
+    from winnotix.ui.theme import DARK, LIGHT, current_palette, palette_for
+
+    assert palette_for("light") is LIGHT
+    assert palette_for("dark") is DARK
+    assert palette_for("system") is current_palette()
+    # A hand-edited settings file is not a reason to fail.
+    assert palette_for("chartreuse") is current_palette()
+
+
+def test_a_remembered_icon_is_redrawn_for_a_new_palette(qapp):
+    from winnotix.ui.theme import DARK, LIGHT
+    from winnotix.ui.widgets import restyle_icons, tool_button
+
+    button = tool_button("back", "Go back", LIGHT)
+    before = icon_pixels(button)
+
+    assert restyle_icons(button, DARK) == 1
+    assert icon_pixels(button) != before, "the icon should have been recoloured"
+
+
+def test_the_header_recolours_its_buttons_and_menu(qapp):
+    from winnotix.ui.theme import DARK, LIGHT
+    from winnotix.ui.widgets import HeaderBar
+
+    header = HeaderBar(LIGHT)
+    action = header.add_menu_action("About", "info", "F1", lambda: None)
+    try:
+        before = icon_pixels(header.back_button), icon_pixels(action)
+        header.retheme(DARK)
+        after = icon_pixels(header.back_button), icon_pixels(action)
+        assert after[0] != before[0], "the back button"
+        assert after[1] != before[1], "the menu action"
+    finally:
+        header.deleteLater()
+
+
+def test_the_status_bar_keeps_the_icon_its_state_calls_for(qapp):
+    """The pause button shows play or pause depending on playback, so a
+    retheme has to redraw whichever it is currently showing."""
+    from winnotix.ui.theme import DARK, LIGHT
+    from winnotix.ui.widgets import StatusBar
+
+    bar = StatusBar(LIGHT)
+    try:
+        bar.set_paused(True)
+        paused_light = icon_pixels(bar.pause_button)
+        bar.retheme(DARK)
+        assert icon_pixels(bar.pause_button) != paused_light
+
+        # And it is still the play icon, not reverted to pause.
+        assert bar.pause_button.themed_icon[0] == "play"
+        assert bar.pause_button.toolTip() == "Resume"
+    finally:
+        bar.deleteLater()
+
+
+def test_the_favourite_star_survives_a_retheme_in_either_state(channels_page):
+    from winnotix.ui.theme import DARK, LIGHT
+
+    channels_page.set_favorite(True)
+    assert channels_page.favorite_button.themed_icon[0] == "star"
+    starred = icon_pixels(channels_page.favorite_button)
+
+    channels_page.retheme(DARK if channels_page._palette is LIGHT else LIGHT)
+    assert channels_page.favorite_button.themed_icon[0] == "star"
+    assert icon_pixels(channels_page.favorite_button) != starred
+
+
+def test_provider_cards_are_recoloured_too(qapp):
+    """The per-card edit and delete buttons are built from the page's palette,
+    which is the case a stylesheet alone would leave stale."""
+    from winnotix.ui.pages import ProvidersPage
+    from winnotix.ui.theme import DARK, LIGHT
+
+    class FakeProvider:
+        name = "Free-TV"
+
+    page = ProvidersPage(LIGHT)
+    try:
+        page.show_providers([FakeProvider()], "Free-TV")
+        buttons = [w for w in page.findChildren(QToolButton)
+                   if getattr(w, "themed_icon", None)]
+        assert buttons, "a provider card should carry themed buttons"
+        before = [icon_pixels(b) for b in buttons]
+
+        page.retheme(DARK)
+        assert [icon_pixels(b) for b in buttons] != before
+    finally:
+        page.deleteLater()
+
+
+def test_the_channel_list_re_applies_its_own_colours(qapp):
+    from PySide6.QtGui import QPalette
+    from winnotix.ui.logos import LogoCache
+    from winnotix.ui.theme import DARK, LIGHT
+    from winnotix.ui.widgets import ChannelList
+    from tests.conftest import FakeSettings
+
+    cache = LogoCache(FakeSettings())
+    listing = ChannelList(cache, LIGHT)
+    try:
+        before = listing.palette().color(QPalette.ColorRole.Base).name()
+        listing.retheme(DARK)
+        after = listing.palette().color(QPalette.ColorRole.Base).name()
+        assert before != after
+        assert after.lower() == DARK.surface.lower()
+    finally:
+        cache.shutdown()
+        listing.deleteLater()

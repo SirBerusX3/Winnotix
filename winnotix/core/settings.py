@@ -73,13 +73,19 @@ DEFAULTS: dict[str, Any] = {
     # same trust boundary as its streams and logos, and nothing is fetched
     # until a country's channel list is opened. See core/epg.py.
     "show-epg": True,
+    # "system" follows the Windows light/dark preference, which is what the app
+    # did before this existed and is still the default. "light" and "dark"
+    # override it -- worth having because Windows applies its setting to apps
+    # and to the shell separately, and because a screenshot sometimes needs one
+    # specific theme. See ui/theme.py.
+    "theme": "system",
 }
 
 # Keys upstream's org.x.hypnotix schema does not have. Kept separate so the
 # tests can still assert we have not drifted from upstream on the shared ones.
 WINNOTIX_KEYS = {"hide-unplayable", "hide-adult-content", "proxy-blocked-logos",
                  "route-by-genre", "show-epg", "subtitles-visible",
-                 "subtitle-scale", "subtitle-position"}
+                 "subtitle-scale", "subtitle-position", "theme"}
 UPSTREAM_KEYS = set(DEFAULTS) - WINNOTIX_KEYS
 
 

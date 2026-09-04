@@ -217,6 +217,13 @@ though browsing files them under Series and Movies. The exception is an Xtream p
 and series come from an authenticated API rather than a cached playlist, so nothing there is
 searchable this way.
 
+## Light and dark
+
+Winnotix follows the Windows app colour mode, and **Preferences → Appearance** can override it with
+Light or Dark. Changes apply immediately, including a change made in Windows while Winnotix is
+running — note that Windows sets the colour mode for apps and for its own shell separately, so the
+two can disagree and the override is there for when they do.
+
 ## Programme guide
 
 Hypnotix has no guide. It has an EPG box on the Add-provider form that saves what you type and

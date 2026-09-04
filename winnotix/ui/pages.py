@@ -43,9 +43,10 @@ from ..core.common import MOVIES_GROUP, SERIES_GROUP, TV_GROUP
 from ..core.paths import resources_dir
 from . import icons
 from .flow_layout import SPANS_ROW
-from .theme import Palette
+from .theme import THEME_CHOICES, Palette
 from .video_widget import VideoWidget
-from .widgets import ChannelList, FlowPage, Tile, separator, tool_button
+from .widgets import (ChannelList, FlowPage, Tile, remember_icon, restyle_icons,
+                      separator, tool_button)
 
 # Poster tiles, and the space a poster actually gets inside one. A QLabel clips
 # a pixmap wider than itself instead of shrinking it, and clips it centred, so
@@ -166,6 +167,9 @@ class LandingPage(QWidget):
         layout.addStretch(1)
         layout.addLayout(tiles)
         layout.addStretch(2)
+
+    def retheme(self, palette: Palette) -> None:
+        restyle_icons(self, palette)
 
     def _tile(self, svg: str, text: str, signal) -> QPushButton:
         # A QPushButton does not adopt a child layout's size hint, so the tile is
@@ -348,9 +352,8 @@ class ChannelsPage(QWidget):
         layout.addWidget(self.splitter)
 
     def _on_favorite_toggled(self, checked: bool) -> None:
-        self.favorite_button.setIcon(
-            icons.icon("star" if checked else "star_outline", self._palette.icon)
-        )
+        remember_icon(self.favorite_button,
+                      "star" if checked else "star_outline", self._palette)
         self.favorite_button.setToolTip(
             "Remove from favourites" if checked else "Add to favourites"
         )
@@ -360,10 +363,14 @@ class ChannelsPage(QWidget):
         """Set the toggle without emitting favorite_toggled."""
         self.favorite_button.blockSignals(True)
         self.favorite_button.setChecked(is_favorite)
-        self.favorite_button.setIcon(
-            icons.icon("star" if is_favorite else "star_outline", self._palette.icon)
-        )
+        remember_icon(self.favorite_button,
+                      "star" if is_favorite else "star_outline", self._palette)
         self.favorite_button.blockSignals(False)
+
+    def retheme(self, palette: Palette) -> None:
+        self._palette = palette
+        restyle_icons(self, palette)
+        self.channel_list.retheme(palette)
 
     def show_message(self, text: str) -> None:
         self.message_label.setText(text)
@@ -589,7 +596,7 @@ class ProvidersPage(QWidget):
         self.flow_page = FlowPage()
 
         browse_button = QPushButton("  Browse country playlists…")
-        browse_button.setIcon(icons.icon("providers", palette.icon))
+        remember_icon(browse_button, "providers", palette)
         browse_button.clicked.connect(self.browse_clicked)
 
         # A new install has one provider, and nothing here said that the
@@ -612,11 +619,11 @@ class ProvidersPage(QWidget):
             self.catalogue_hint.heightForWidth(FORM_WIDTH))
 
         add_button = QPushButton("  Add a new provider…")
-        add_button.setIcon(icons.icon("plus", palette.icon))
+        remember_icon(add_button, "plus", palette)
         add_button.clicked.connect(self.add_clicked)
 
         reset_button = QPushButton("  Reset to defaults…")
-        reset_button.setIcon(icons.icon("reset", palette.icon))
+        remember_icon(reset_button, "reset", palette)
         reset_button.clicked.connect(self.reset_clicked)
 
         buttons = QHBoxLayout()
@@ -647,6 +654,10 @@ class ProvidersPage(QWidget):
         if width > 0:
             self.catalogue_hint.setMinimumHeight(
                 self.catalogue_hint.heightForWidth(width))
+
+    def retheme(self, palette: Palette) -> None:
+        self._palette = palette
+        restyle_icons(self, palette)
 
     @staticmethod
     def _catalogue_summary() -> str:
@@ -1085,6 +1096,33 @@ class PreferencesPage(QScrollArea):
         mpv_hint = QLabel("Space-separated key=value pairs, e.g. hwdec=auto-safe osc=no")
         mpv_hint.setProperty("dim", "true")
 
+        appearance_heading = QLabel("Appearance")
+        appearance_heading.setProperty("heading", "true")
+
+        self.theme_combo = QComboBox()
+        for value, label in THEME_CHOICES:
+            self.theme_combo.addItem(label, value)
+        current = settings.get_string("theme")
+        index = self.theme_combo.findData(current)
+        self.theme_combo.setCurrentIndex(index if index >= 0 else 0)
+        self.theme_combo.currentIndexChanged.connect(
+            lambda _index: self.setting_changed.emit("theme",
+                                                     self.theme_combo.currentData())
+        )
+        theme_row = QHBoxLayout()
+        theme_row.addWidget(QLabel("Theme:"))
+        theme_row.addWidget(self.theme_combo)
+        theme_row.addStretch(1)
+
+        theme_hint = QLabel(
+            "Follow Windows uses the app colour mode from Windows settings, which "
+            "is separate from the one Windows applies to its own shell. Light and "
+            "Dark override it. The change applies at once — Winnotix used to need "
+            "restarting for a Windows theme change to reach it, and no longer does."
+        )
+        theme_hint.setWordWrap(True)
+        theme_hint.setProperty("dim", "true")
+
         playlist_heading = QLabel("Playlists")
         playlist_heading.setProperty("heading", "true")
 
@@ -1249,6 +1287,11 @@ class PreferencesPage(QScrollArea):
 
         layout.addLayout(form)
         layout.addWidget(mpv_hint)
+        layout.addSpacing(10)
+        layout.addWidget(separator())
+        layout.addWidget(appearance_heading)
+        layout.addLayout(theme_row)
+        layout.addWidget(theme_hint)
         layout.addSpacing(10)
         layout.addWidget(separator())
         layout.addWidget(playlist_heading)
