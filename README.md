@@ -1,6 +1,6 @@
 # ![shadow](https://imglink.cc/cdn/DcEzN0VkW8.png)  Winnotix 
 
-![Winnotix playing UN Web TV, split diagonally to show the light and dark themes](assets/splitexample.png)
+![Winnotix playing UN Web TV, split diagonally: the light theme on the left with the channel list, the dark theme on the right with the header and player](assets/splitexample.png)
 
 
 An IPTV player for Windows — a port of [Hypnotix](https://github.com/linuxmint/hypnotix), the Linux

@@ -46,6 +46,13 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
 - **The screenshot in the README shows the app playing**, from a file the repository serves itself
   rather than a third-party image host, and both themes at once. The previous one predated the
   Pluto change and advertised numbers the README's own blocklist section contradicted.
+  - **The cut starts at the sidebar edge, not the window corner.** A corner-to-corner diagonal
+    slices through the top of the channel list and reads as a rendering fault; starting where the
+    app already draws a boundary leaves the list whole, crosses the header in the empty space
+    between the title and the buttons, and crosses the video where the two frames are identical
+    and the seam cannot be seen.
+  - Both captures are kept alongside the composite, and `tools/split_screenshot.py` rebuilds it,
+    so the next one is a command rather than an afternoon in an image editor.
 
 ---
 
