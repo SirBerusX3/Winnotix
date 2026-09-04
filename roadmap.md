@@ -1,9 +1,12 @@
 # Winnotix — Hypnotix Windows Port Roadmap
 
-> **Status:** Phases 0–2 complete; Phase 3 complete except for the three inherited upstream parsing
-> defects in §5. This document is the *plan* and is kept as written except where the work proved it
-> wrong — [changelog.md](changelog.md) is the record of what has actually been done. Phase 4 is
-> built as a portable one-folder app (`python build.py package`); an installer remains optional.
+> **Status:** Phases 0–4 complete and released — 0.1.0 on 2026-09-02, 0.2.0 on 2026-09-04, both as
+> a portable one-folder app built by CI from a tag. What remains from the original plan is three
+> inherited parsing defects (§5) and a decision about them, not work. Where the project goes from
+> here is §13; what has to stay put for it to still be Hypnotix-shaped is §12.
+>
+> This document is the *plan* and is kept as written except where the work proved it wrong —
+> [changelog.md](changelog.md) is the record of what has actually been done.
 > **Revision 2** — rewritten after auditing the actual upstream source. Revision 1 over-estimated
 > the difficulty of MPV embedding and settings, and missed several real Linux dependencies.
 > See [Appendix A](#appendix-a--what-changed-from-revision-1) for what changed and why.
@@ -380,12 +383,21 @@ rejected: embedding a real hardware-accelerated player is the app's whole purpos
 
 ## 11. Parked — worth doing, not yet scheduled
 
-### Code signing for the portable build — **hook built, certificate outstanding**
+### Code signing for the portable build — **all three routes tried; none open**
 
-> The `build.py package` half is done: `WINNOTIX_SIGN_COMMAND` holds a command template, a
-> configured command that fails fails the build, and `--zip` refuses to produce a distributable
-> from an unsigned build unless `--allow-unsigned` says so. So the remaining work is obtaining a
-> certificate, not writing code. The notes below stand as the shortlist for that.
+> **Answered, and the answer is no for now.** The `build.py package` half was always done:
+> `WINNOTIX_SIGN_COMMAND` holds a command template, a configured command that fails fails the
+> build, and `--zip` refuses to produce a distributable from an unsigned build unless
+> `--allow-unsigned` says so. The release workflow passes the same variable through from a
+> repository secret, so a certificate is a settings change and not a code change.
+>
+> The shortlist below was written as leads. All three were checked on 2026-09-04 and the results
+> are recorded in `signpath-application.md`: **SignPath Foundation declined** on public visibility
+> and invited a reapplication; **Azure Artifact Signing** validates individual developers only in
+> the US and Canada, and wants three years of tax history from an organisation; a **commercial OV
+> certificate** is roughly $215–220 a year and would remove "unknown publisher" without removing
+> the SmartScreen warning, which accrues per publisher. 0.1.0 and 0.2.0 therefore ship unsigned,
+> say so on their own release pages, and publish a SHA-256 instead. See §13.
 
 PyInstaller output has a shape antivirus heuristics dislike -- unsigned, self-extracting,
 bundling an interpreter -- regardless of what it contains. This is not hypothetical here:
@@ -458,6 +470,98 @@ browse there and a VOD library for an Xtream provider, and the Preferences text 
 which was expected — but matching its channels through iptv-org's ids does not rescue it either:
 only 9 of its 2,053 entries classify as series and 30 as movies. This is an iptv-org feature, and
 the default provider gains almost nothing from it.
+
+## 12. What must stay recognisable
+
+Winnotix is not a fork. It has its own history, its own UI toolkit and features Hypnotix has no
+equivalent for, and it is still meant to be recognisably the same application. That is not a
+promise to add nothing — the programme guide, the channel check, cross-provider search and genre
+routing are all beyond anything upstream does, and none of them threatens the resemblance.
+
+Three things carry it. Anything built *around* them is ordinary work; a change *to* one of them is
+a deliberate decision that belongs in the changelog with its reasoning.
+
+**1. The provider format.** Providers are stored as upstream's `:::`-delimited string
+(§3), so a Hypnotix user's configuration pastes straight in and keeps working. `tests/test_settings.py`
+pins the shape. Changing it would silently strand every existing configuration.
+
+**2. The parsing behaviour.** `xtream.py` is byte-identical to upstream and `common.py` differs by
+five lines, so the same playlist produces the same channels, groups and series in both applications
+— **bugs included**. This is why the three defects in §5 are pinned by `strict=True` xfail tests
+rather than quietly fixed: fixing one is choosing *correct* over *identical*, which is defensible,
+but it means a playlist that groups into a series here and not there, with nothing on screen to
+explain the difference.
+
+**3. The navigation shape.** Landing tiles into categories into channels, with providers managed
+separately — upstream's stack-of-pages model, kept deliberately (§4). It is what somebody
+recognises on sight, and it is the reason the port reads as Hypnotix rather than as a generic
+player that happens to open M3U files.
+
+Everything else — the Qt widgets, the storage locations, the packaging, the icon set — was replaced
+outright and can be replaced again without anyone noticing a change of character.
+
+---
+
+## 13. Where this goes next
+
+Ordered by how settled it is, not by how appealing. Nothing here is promised; this is what the
+project would sensibly do next and what it has decided against, so that a reader can tell the
+difference between "not yet" and "no".
+
+### Decisions waiting, rather than work waiting
+
+- **The three inherited parsing defects** (§5). Each is pinned by a strict xfail, so fixing one
+  flips its test to a failure and forces the choice to be made on purpose. The choice is *correct*
+  versus *identical to upstream* — see §12.2. A reasonable resolution is to fix the extensionless
+  logo path (invisible to compatibility, it only affects a cache filename) and leave the `SERIES`
+  regex and the comma truncation alone until upstream moves, since those two change what a playlist
+  *becomes*.
+- **Code signing.** SignPath Foundation declined on 2026-09-04 for want of public visibility and
+  invited a reapplication; the other routes are closed rather than merely expensive
+  (`signpath-application.md`). Nothing to build — `WINNOTIX_SIGN_COMMAND` already runs in
+  `build.py` and in the release workflow, and adding the repository secret is the whole switch.
+
+### Candidates that do not touch the three
+
+- **Windows integration.** Media keys and the system "now playing" panel, taskbar thumbnail
+  controls, a jump list of recent channels. A Windows port doing Windows things is the clearest
+  remaining way to be better here than upstream is there, and none of it touches the model.
+- **Better programme-guide matching.** Coverage is measured, not guessed: 65% on the Free-TV UK
+  playlist and 17% on iptv-org's UK group, with the reasons in the header of `core/epg.py`.
+  Anything above that is a measurable improvement rather than a feature.
+- **Xtream VOD and series in cross-provider search.** Impossible under the current cached-only rule
+  — an Xtream provider's catalogue is behind an authenticated API and never touches the playlist
+  cache. It would need an explicit, consented fetch, which is a UI question before it is a code
+  question.
+- **An installer.** §6 left this optional and the portable zip remains the primary form. Worth
+  revisiting only if enough people ask; Inno Setup or MSIX, and it must not become the *only* form.
+- **A compact or picture-in-picture player**, for watching while working. Additive, and it would
+  put the theme and subtitle work to more use than a single window does.
+
+### Deliberately not planned
+
+- **Translation.** §5 item 10. The 60+ upstream `.po` files key off Glade msgids that this UI does
+  not use, so the catalogue is not the free win it appears to be, and half a translation is worse
+  than none.
+- **Recording or a DVR.** Hypnotix does not record, and neither should this. It would change what
+  the application *is* rather than extend it, and it invites a legal conversation this project has
+  no reason to have.
+- **Linux or macOS builds.** Hypnotix already serves Linux, and serves it better than a port of a
+  port would. This exists because Windows had nothing you could download and run.
+- **Merging back into upstream.** Linux Mint said they would accept a Windows client as a PR
+  ([hypnotix#145](https://github.com/linuxmint/hypnotix/issues/145)), but that predates this being a
+  PySide6 rewrite: there is no diff to offer a GTK application. Individual *fixes* to
+  `common.py` or `xtream.py` are a different matter and should be offered upstream when they arise.
+
+### How upstream changes reach us
+
+Not being a fork means no "commits behind" badge, and that badge would be the wrong signal anyway:
+upstream's commits are mostly translations, packaging and its GTK UI, none of which exists here.
+`.github/workflows/upstream.yml` runs weekly and opens an issue **only** when one of the two carried
+files changes. Measured against real history, a 34-commit gap touched 111 files and exactly one of
+them mattered. `python build.py doctor` answers the same question on demand.
+
+---
 
 ## Appendix A — What changed from revision 1
 

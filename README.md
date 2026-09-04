@@ -11,7 +11,9 @@ decoding, the upstream playlist/provider backend runs on Windows, and the UI is 
 channels, VOD, series, favourites, search, provider management and both M3U and Xtream providers.
 yt-dlp downloads on demand from Preferences, and `python build.py package` produces a portable
 one-folder app. The one deliberate omission is translation — the reasoning is in
-[roadmap.md](roadmap.md) §5. See [changelog.md](changelog.md) for what has actually been done.
+[roadmap.md](roadmap.md) §5. Where the project goes next, and what it has decided against,
+is §13; §12 sets out the three things that have to stay put for this to remain recognisably
+Hypnotix. See [changelog.md](changelog.md) for what has actually been done.
 
 ## Why
 
