@@ -89,7 +89,13 @@ jobs:
         run: |
           $hash = (Get-FileHash dist/Winnotix-portable.zip -Algorithm SHA256).Hash.ToLower()
           Write-Output $hash
-          "$hash *Winnotix-portable.zip" | Out-File -Encoding ascii dist/Winnotix-portable.zip.sha256
+          # Written through .NET rather than Out-File, which ends the line
+          # with CRLF. `sha256sum -c` then takes the trailing carriage
+          # return as part of the filename, cannot find that file, and the
+          # checksum fails at the one job it has -- as it did on the 0.2.0
+          # build, where the hash was right and the file unusable.
+          $line = "$hash *Winnotix-portable.zip`n"
+          [IO.File]::WriteAllText("$PWD/dist/Winnotix-portable.zip.sha256", $line)
           "### ``Winnotix-portable.zip``" | Out-File -Append $env:GITHUB_STEP_SUMMARY
           "SHA-256 ``$hash``" | Out-File -Append $env:GITHUB_STEP_SUMMARY
 
