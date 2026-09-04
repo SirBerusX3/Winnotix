@@ -1,0 +1,85 @@
+# Watches upstream Hypnotix for changes to the files this project carries.
+#
+# Winnotix is not a fork, so there is no "N commits behind" badge -- and that
+# badge would be the wrong signal anyway. Upstream's commits are mostly
+# translations, packaging and its GTK UI, none of which exists here. Only two
+# files came across: xtream.py byte-identical, and common.py with five lines
+# changed. A commit touching either is a merge decision; a commit touching
+# anything else is noise.
+#
+# So this opens an issue only when a carried file changes. Measured against real
+# history, a 34-commit gap touched 111 files and exactly one of them mattered --
+# which is the difference between a useful notification and one that gets muted.
+#
+# Runs weekly. Upstream is not fast-moving: as of 2026-09-04 the pin was still
+# their master head, ten days old.
+name: Upstream watch
+
+on:
+  schedule:
+    # Monday mornings, UTC.
+    - cron: "0 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    name: Compare with linuxmint/hypnotix
+    runs-on: ubuntu-latest
+
+    steps:
+      # No submodules: the pinned commit is the gitlink in this repo's own tree,
+      # so it can be read without checking upstream out. The script clones
+      # upstream itself, blobless, only when it needs history to diff.
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Check upstream
+        id: check
+        run: python tools/check_upstream.py
+
+      - name: Say so in the run summary
+        run: echo "${{ steps.check.outputs.summary }}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open an issue when a carried file changed
+        if: steps.check.outputs.carried_changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SUMMARY: ${{ steps.check.outputs.summary }}
+          UPSTREAM: ${{ steps.check.outputs.upstream }}
+        run: |
+          set -euo pipefail
+          title="Upstream changed a file Winnotix carries"
+
+          # One open issue at a time: this runs weekly, and a change stays
+          # changed until someone acts on it.
+          existing=$(gh issue list --state open --search "$title in:title" \
+                       --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            echo "already tracked in #$existing"
+            exit 0
+          fi
+
+          gh issue create --title "$title" --body "$(cat <<EOF
+          $SUMMARY
+
+          Upstream head: \`$UPSTREAM\`
+
+          Only two upstream files are carried here:
+
+          - \`usr/lib/hypnotix/xtream.py\` — copied byte-identical
+          - \`usr/lib/hypnotix/common.py\` — five lines changed, listed in [roadmap.md](../blob/main/roadmap.md) section 3
+
+          Decide whether to merge the change or record why not. Run
+          \`python tools/check_upstream.py --json\` for the detail, and close
+          this once the decision is made either way.
+
+          Opened automatically by [.github/workflows/upstream.yml](../blob/main/.github/workflows/upstream.yml).
+          EOF
+          )"

@@ -505,6 +505,18 @@ def cmd_doctor(args) -> int:
         if head:
             print(f"  {'git HEAD':<18} {head}")
 
+        # The same check the weekly workflow runs, so there is one
+        # definition of "has upstream changed anything we carry". It needs
+        # the network, and a doctor run offline should still be useful, so
+        # a failure is reported rather than fatal.
+        probe = subprocess.run(
+            [sys.executable, str(ROOT / "tools" / "check_upstream.py")],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            cwd=ROOT, timeout=90,
+        )
+        answer = (probe.stdout.strip().splitlines() or [""])[0]
+        print(f"  {'upstream':<18} " + (answer or 'could not be checked'))
+
     print("\n  " + ("Everything looks ready." if ok
                     else "Something is missing — see above."))
     return 0 if ok else 1

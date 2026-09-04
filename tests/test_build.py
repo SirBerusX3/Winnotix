@@ -156,3 +156,52 @@ def test_the_language_and_the_translation_entry_agree():
     language, charset = resource.kids[1].kids[0].kids
 
     assert resource.kids[0].kids[0].name == f"{language:04X}{charset:04X}"
+
+
+# ---------------------------------------------------------------------------
+# The upstream drift check
+# ---------------------------------------------------------------------------
+
+def upstream_module():
+    """tools/ is not a package, so it is imported by path."""
+    import importlib.util
+
+    path = Path(build.__file__).parent / "tools" / "check_upstream.py"
+    spec = importlib.util.spec_from_file_location("check_upstream", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_only_the_carried_files_count():
+    """The whole point: upstream's translations and GTK UI are not our problem,
+    and a 34-commit gap that touched 111 files had one file that mattered."""
+    upstream = upstream_module()
+    assert set(upstream.CARRIED) == {
+        "usr/lib/hypnotix/common.py",
+        "usr/lib/hypnotix/xtream.py",
+    }
+
+
+def test_describe_says_what_it_means_not_what_it_counted():
+    upstream = upstream_module()
+
+    level = {"level": True, "pinned": "0e0fa1c7596f79", "behind": 0,
+             "carried_changed": []}
+    assert "level with upstream" in upstream.describe(level)
+
+    noise = {"level": False, "behind": 12, "carried_changed": []}
+    assert "none of it in the files" in upstream.describe(noise)
+
+    merge = {"level": False, "behind": 34,
+             "carried_changed": ["usr/lib/hypnotix/common.py"]}
+    said = upstream.describe(merge)
+    assert "common.py" in said
+    assert "merge decision" in said
+
+
+def test_one_commit_behind_reads_as_singular():
+    """A small thing, but the message is read weekly and "1 commits" grates."""
+    upstream = upstream_module()
+    said = upstream.describe({"level": False, "behind": 1, "carried_changed": []})
+    assert "1 commit ahead" in said
