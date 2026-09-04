@@ -3,10 +3,11 @@
 Notes for applying at <https://signpath.org/apply>. Kept in the repo because the
 answers are facts about the project, and a reviewer may ask for them again.
 
-## Outcome: declined 2026-09-02, on visibility alone
+## Outcome: declined 2026-09-04, on visibility alone
 
-Applied and declined the same day the project was first released. The reason
-given was public visibility rather than anything about the software:
+Applied on 2026-09-02, the day of the first release, and declined two days
+later. The reason given was public visibility rather than anything about the
+software:
 
 > The Foundation program is designed for projects that have already established
 > a certain level of public trust and visibility [...] we look for external

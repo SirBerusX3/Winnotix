@@ -10,7 +10,7 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
 
 ---
 
-## [Unreleased]
+## [0.2.0] - 2026-09-04
 
 ### Added
 

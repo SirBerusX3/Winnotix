@@ -44,8 +44,8 @@ is a shape heuristics already dislike whatever it contains.
 
 A certificate is the only real fix, and none of the routes is currently open. [SignPath
 Foundation](https://signpath.org/) sign open-source projects for free but declined this one on
-2 September 2026 for want of public visibility — stars, forks, external discussion — which a
-project released the same day does not have; they invited a reapplication once it does.
+4 September 2026 for want of public visibility — stars, forks, external discussion — which a
+project released two days earlier does not have; they invited a reapplication once it does.
 [Azure Artifact Signing](https://azure.microsoft.com/products/artifact-signing) restricts
 individual developers to the US and Canada. A commercial OV certificate is about $215–220 a year.
 
