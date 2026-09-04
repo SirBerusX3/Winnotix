@@ -1,7 +1,32 @@
-# SignPath Foundation application — the details to hand them
+# SignPath Foundation application — the details, and the outcome so far
 
 Notes for applying at <https://signpath.org/apply>. Kept in the repo because the
 answers are facts about the project, and a reviewer may ask for them again.
+
+## Outcome: declined 2026-09-02, on visibility alone
+
+Applied and declined the same day the project was first released. The reason
+given was public visibility rather than anything about the software:
+
+> The Foundation program is designed for projects that have already established
+> a certain level of public trust and visibility [...] we look for external
+> signals such as community adoption (GitHub stars, forks, contributors),
+> external articles, independent references or discussions [...] This isn't a
+> judgment on the quality or potential of your work.
+
+They invited a reapplication once those signals exist. Nothing below needs
+changing for that — the answers are the same, and the CI pipeline they would
+have asked about now exists (`.github/workflows/release.yml`). What has to
+change is the project's reach, which is not something a build script can fix.
+
+**The other two routes are closed, not merely expensive.** Azure Artifact
+Signing (formerly Trusted Signing) restricts *individual* identity validation to
+the United States and Canada, and its organisation route wants three or more
+years of verifiable tax history, so incorporating would not open it either. That
+leaves a commercial OV certificate at roughly $215–220 a year with a hardware
+token or cloud HSM — and worth knowing before buying one: SmartScreen builds
+reputation per publisher, so a fresh OV certificate removes "unknown publisher"
+without immediately removing the warning.
 
 ## The form
 

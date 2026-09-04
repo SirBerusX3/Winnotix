@@ -40,11 +40,22 @@ software may also quarantine it on sight.
 
 That warning is about provenance, not content: an unsigned executable is one Windows cannot trace
 to a named publisher, and PyInstaller output — self-extracting, bundling a Python interpreter —
-is a shape heuristics already dislike whatever it contains. A certificate is the only real fix, and
-[SignPath Foundation](https://signpath.org/), who sign open-source projects for free, require a
-project to be released before they will consider it. So this release is the application, and
-signing follows it rather than preceding it. Until then, the alternative to trusting the binary is
-running from source, below — the same code, built on your own machine.
+is a shape heuristics already dislike whatever it contains.
+
+A certificate is the only real fix, and none of the routes is currently open. [SignPath
+Foundation](https://signpath.org/) sign open-source projects for free but declined this one on
+2 September 2026 for want of public visibility — stars, forks, external discussion — which a
+project released the same day does not have; they invited a reapplication once it does.
+[Azure Artifact Signing](https://azure.microsoft.com/products/artifact-signing) restricts
+individual developers to the US and Canada. A commercial OV certificate is about $215–220 a year.
+
+So what is offered instead is everything that can be checked without one:
+
+- **A SHA-256 for every release asset**, published in the release notes and as a `.sha256` file.
+- **Builds that come from a pipeline, not a laptop.** `.github/workflows/release.yml` builds the
+  zip from a tagged commit using the same command a maintainer runs, so what is published can be
+  reproduced from the source at that tag.
+- **The source itself.** Running from source, below, is one command, and it is the same code.
 
 ## Running from source
 
