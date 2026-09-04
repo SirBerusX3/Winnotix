@@ -1366,6 +1366,15 @@ class PreferencesPage(QScrollArea):
 
     # -- subtitles -----------------------------------------------------
 
+    def set_theme(self, value: str) -> None:
+        """Reflect a theme chosen elsewhere, without echoing it back."""
+        index = self.theme_combo.findData(value)
+        if index < 0:
+            return
+        self.theme_combo.blockSignals(True)
+        self.theme_combo.setCurrentIndex(index)
+        self.theme_combo.blockSignals(False)
+
     def _update_subtitle_labels(self) -> None:
         self.subtitle_scale_label.setText(f"{self.subtitle_scale.value() / 100:.2f}x")
         value = self.subtitle_position.value()

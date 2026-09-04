@@ -38,6 +38,13 @@ _STROKE: dict[str, str] = {
     "reset":            "M20 12 A8 8 0 1 1 14.5 4.4 M20 4 V9 H15",
     "preferences":      "M4 7 H20 M4 12 H20 M4 17 H20 M9 4 V10 M15 9 V15 M9 14 V20",
     "providers":        "M4 5 H20 V9 H4 Z M4 11 H20 V15 H4 Z M4 17 H20 V21 H4 Z",
+    # The header's theme button shows the theme it would switch *to*, so a sun
+    # means "go light" and appears while the app is dark.
+    "sun":              ("M12 7.5 A4.5 4.5 0 1 1 12 16.5 A4.5 4.5 0 1 1 12 7.5 "
+                         "M12 2 V4 M12 20 V22 M2 12 H4 M20 12 H22 "
+                         "M4.9 4.9 L6.4 6.4 M17.6 17.6 L19.1 19.1 "
+                         "M19.1 4.9 L17.6 6.4 M6.4 17.6 L4.9 19.1"),
+    "moon":             "M20.5 13.3 A8.5 8.5 0 1 1 10.7 3.5 A6.8 6.8 0 0 0 20.5 13.3 Z",
     "folder":           "M3 7 A1 1 0 0 1 4 6 H9 L11 8 H20 A1 1 0 0 1 21 9 V18 A1 1 0 0 1 20 19 H4 A1 1 0 0 1 3 18 Z",
     "info":             "M12 4 A8 8 0 1 1 12 20 A8 8 0 1 1 12 4 M12 11 V16 M12 8 V8.01",
     "keyboard":         "M3 7 H21 V17 H3 Z M7 11 H7.01 M11 11 H11.01 M15 11 H15.01 M8 14 H16",

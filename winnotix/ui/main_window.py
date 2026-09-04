@@ -160,6 +160,7 @@ class MainWindow(QMainWindow):
         self.header = HeaderBar(self.palette_)
         self.header.back_clicked.connect(self.on_go_back)
         self.header.fullscreen_clicked.connect(self.toggle_fullscreen)
+        self.header.theme_clicked.connect(self.toggle_theme)
 
         self.status = StatusBar(self.palette_)
         self.status.show_clicked.connect(lambda: self.navigate_to(CHANNELS))
@@ -1234,6 +1235,18 @@ class MainWindow(QMainWindow):
         """
         if self.settings.get_string("theme") == "system":
             self.apply_theme()
+
+    def toggle_theme(self) -> None:
+        """The header button: switch to the other theme, and mean it.
+
+        Toggling picks a side rather than returning to Follow Windows, because
+        the button says which theme it will give you and following Windows
+        cannot promise that. Preferences is where "follow Windows again" lives.
+        """
+        choice = "light" if self.palette_.dark else "dark"
+        self.settings.set_string("theme", choice)
+        self.preferences.set_theme(choice)
+        self.apply_theme()
 
     def apply_theme(self) -> None:
         """Re-apply the palette everywhere, without a restart.

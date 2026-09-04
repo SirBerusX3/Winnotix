@@ -219,10 +219,14 @@ searchable this way.
 
 ## Light and dark
 
-Winnotix follows the Windows app colour mode, and **Preferences → Appearance** can override it with
-Light or Dark. Changes apply immediately, including a change made in Windows while Winnotix is
-running — note that Windows sets the colour mode for apps and for its own shell separately, so the
-two can disagree and the override is there for when they do.
+Winnotix follows the Windows app colour mode, and the **sun or moon button in the header** switches
+to the other theme at once — it shows the theme it will give you, not the one you are in.
+**Preferences → Appearance** has the same choice plus *Follow Windows*, which is the default.
+
+Changes apply immediately, including one made in Windows while Winnotix is running. Note that
+Windows sets the colour mode for apps and for its own shell separately, so the two can disagree —
+which is what the override is for. Choosing Light or Dark pins it: a later Windows change will not
+move it back.
 
 ## Programme guide
 

@@ -93,6 +93,7 @@ class HeaderBar(QWidget):
 
     back_clicked = Signal()
     fullscreen_clicked = Signal()
+    theme_clicked = Signal()
 
     def __init__(self, palette: Palette, parent=None) -> None:
         super().__init__(parent)
@@ -116,6 +117,14 @@ class HeaderBar(QWidget):
         self.fullscreen_button = tool_button("fullscreen", "Fullscreen (F11)", palette)
         self.fullscreen_button.clicked.connect(self.fullscreen_clicked)
 
+        # Shows the theme it would switch *to*, so a sun appears while the app
+        # is dark. In the header rather than only in Preferences because a
+        # setting nobody finds is one nobody uses -- the same reason the channel
+        # filter came out from behind its button.
+        self.theme_button = tool_button("sun", "", palette)
+        self.theme_button.clicked.connect(self.theme_clicked)
+        self._set_theme_button(palette)
+
         self.menu_button = tool_button("menu", "Main menu", palette)
         self.menu_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         self.menu = QMenu(self)
@@ -128,6 +137,7 @@ class HeaderBar(QWidget):
         top.addStretch(1)
         top.addLayout(titles)
         top.addStretch(1)
+        top.addWidget(self.theme_button)
         top.addWidget(self.fullscreen_button)
         top.addWidget(self.menu_button)
 
@@ -151,8 +161,19 @@ class HeaderBar(QWidget):
         self.menu.addAction(action)
         return action
 
+    def _set_theme_button(self, palette: Palette) -> None:
+        going_light = palette.dark
+        remember_icon(self.theme_button, "sun" if going_light else "moon", palette)
+        self.theme_button.setToolTip(
+            f"Switch to the {'light' if going_light else 'dark'} theme\n"
+            "Preferences → Appearance can follow Windows instead"
+        )
+
     def retheme(self, palette: Palette) -> None:
         self._palette = palette
+        # Before the walk, because which icon this button remembers is itself
+        # a function of the palette.
+        self._set_theme_button(palette)
         restyle_icons(self, palette)
 
 

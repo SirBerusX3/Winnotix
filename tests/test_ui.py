@@ -1086,3 +1086,56 @@ def test_the_channel_list_re_applies_its_own_colours(qapp):
     finally:
         cache.shutdown()
         listing.deleteLater()
+
+
+def test_the_header_offers_the_theme_it_would_switch_to(qapp):
+    """The button shows a sun while dark, because that is what clicking gives
+    you -- showing the current theme instead would read as a status light."""
+    from winnotix.ui.theme import DARK, LIGHT
+    from winnotix.ui.widgets import HeaderBar
+
+    header = HeaderBar(LIGHT)
+    reference = HeaderBar(LIGHT)    # kept alive: its widgets are compared against
+    try:
+        assert header.theme_button.themed_icon[0] == "moon"
+        assert "dark" in header.theme_button.toolTip()
+        light_moon = icon_pixels(reference.theme_button)
+
+        header.retheme(DARK)
+        assert header.theme_button.themed_icon[0] == "sun"
+        assert "light" in header.theme_button.toolTip()
+        # And it is drawn in the new palette, not left in the old one.
+        assert icon_pixels(header.theme_button) != light_moon
+    finally:
+        header.deleteLater()
+        reference.deleteLater()
+
+
+def test_the_theme_button_emits_rather_than_deciding(qapp):
+    """The header does not know what the setting is; MainWindow owns that."""
+    from winnotix.ui.theme import LIGHT
+    from winnotix.ui.widgets import HeaderBar
+
+    header = HeaderBar(LIGHT)
+    fired = []
+    header.theme_clicked.connect(lambda: fired.append(True))
+    try:
+        header.theme_button.click()
+        assert fired == [True]
+    finally:
+        header.deleteLater()
+
+
+def test_preferences_can_be_told_the_theme_without_echoing_it(qapp):
+    """The header button changes the setting, so the combo has to follow --
+    and must not emit that back as a fresh change."""
+    page = _preferences(qapp)
+    emitted = []
+    page.setting_changed.connect(lambda key, value: emitted.append((key, value)))
+
+    page.set_theme("dark")
+    assert page.theme_combo.currentData() == "dark"
+    assert emitted == []
+
+    page.set_theme("not-a-theme")
+    assert page.theme_combo.currentData() == "dark", "an unknown value is ignored"

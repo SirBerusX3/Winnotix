@@ -33,6 +33,13 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
   - Rows a channel check dimmed are re-dimmed rather than left in the old palette's grey: the
     verdicts are kept so the colour can be re-applied, since they cannot be recomputed without
     asking every server again.
+  - **A button in the header, not only a setting in Preferences.** Same reasoning as the channel
+    filter coming out from behind its toggle: a setting nobody finds is one nobody uses. It shows
+    the theme it would switch *to* — a sun while the app is dark — because showing the current
+    theme would read as a status light rather than an action. Clicking it picks a side rather than
+    returning to Follow Windows, since the button promises a specific theme and following Windows
+    cannot; Preferences is where "follow Windows again" lives, and it keeps in step when the button
+    is used.
 
 ### Changed
 
