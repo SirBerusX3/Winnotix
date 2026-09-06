@@ -471,41 +471,58 @@ which was expected — but matching its channels through iptv-org's ids does not
 only 9 of its 2,053 entries classify as series and 30 as movies. This is an iptv-org feature, and
 the default provider gains almost nothing from it.
 
-### Playback commands still run on the GUI thread — **latent; named because it is not reproducing**
+### Playback commands still run on the GUI thread — **done; it reproduced, and the premise was half wrong**
 
-`player.play(url)` reaches libmpv through `_mpv_command_node`, which is the *synchronous*
-command API: it blocks its caller until mpv's core has processed the command. Every channel
-switch does this from the Qt GUI thread, and so does the stall watch's reload
-(`_reload_stalled_channel`). That is a deadlock shape — the core can be waiting on the video
-output, the video output wants the GUI thread, and the GUI thread is sitting inside libmpv.
+This was parked as latent, on the grounds that it was not reproducing and the fix was
+disproportionate to the evidence. It named what would un-park it: a hang that recurs on switching
+channels. That happened the same evening.
 
-**The same hazard has already bitten once, elsewhere.** `cae3101` polled `time-pos` and `pause`
-with `mpv_get_property` — also synchronous — once a second from the GUI thread. On 2026-09-06 the
-window hung hard enough to need a force-quit, on a geo-blocked Xumo channel, and `70e6250`
-replaced that poll with observed properties pushed from mpv's event thread. It has not recurred
-since: not on a cold launch, and not on a Pluto → Filmex switch, which was the sequence that
-produced it.
+`player.play(url)` reaches libmpv through `_mpv_command_node`, the *synchronous* command API. On a
+core unwinding a demuxer mid-retry that call blocks, and blocking on the GUI thread is the window
+locking up. Every mpv command has moved off it: the stall watch's reopen (`96b0d4e`), `stop`
+including the Stop button (`a7884ce`), and choosing a channel by hand (`920f7ba`). `self.mpv.play`,
+`self.mpv.stop` and `self.mpv.command` no longer appear on that thread at all.
 
-**What is unproven is which call was the blocker.** The heartbeat was a known-real defect and is
-gone. `loadfile` is a hazard of the same class that remains, and no measurement ever caught it —
-a headless harness cannot reproduce any of this, because `vo=null` has no video output to deadlock
-against, and a video output is the one thing the app has that the harness does not.
+**What the entry got wrong is more useful than what it got right.** The GUI-thread call was a real
+hazard and fixing it was correct, but it was not why "no channel loads after a bad one". That is a
+separate and worse thing: some streams do not fail, they take mpv's core with them. After a run of
+fragment 404s from BBC's HEVC DASH manifests, `stop` and `loadfile` both return in 0.00s and are
+then ignored — a known-good stream never started on that core and was playing within ten seconds on
+a fresh one. Reproduced headlessly, and identically with `hwdec=no` and `hwdec=auto-safe`, so it is
+ffmpeg's DASH demuxer rather than decoding, the GPU, or anything this app configures.
 
-Worth keeping the arithmetic in mind before treating the two as equivalent. A once-a-second read
-gives thousands of chances to collide across an evening's viewing; a per-switch command gives a
-handful. Session length correlating with the hang is explained by the first and not by the second,
-which is the main reason this is parked rather than scheduled.
+So the core is unrecoverable but disposable, and giving up now replaces the player (`b037ee4`) on a
+video surface of its own (`64cd054`) which is hidden rather than destroyed (`d3bb729`) — the
+abandoned renderer is still live, and pulling its window out from under it left an app that painted
+normally and answered no input.
 
-**Parked because the fix is disproportionate to the evidence.** Moving playback initiation off the
-GUI thread means reworking the core playback path — inherited from upstream's design, working, and
-exercised on every channel change — against a fault that is not currently reproducing. Reworking a
-working path on suspicion is how a fixed bug becomes two new ones.
+**The method failed four times in the same way, which is worth more than the fix.** `70e6250`,
+`96b0d4e`, `b037ee4` and `64cd054` each passed a headless harness and then failed in the window,
+because `vo=null` has no video output and no window handle. Two of them made things worse than the
+fault they were recovering from. Anything touching the window has to be tested in the window; there
+is no unit test in this repo that can stand in for that, and pretending otherwise cost an evening
+of somebody else's testing.
 
-**What would un-park it:** a hang that recurs on switching channels. The terminal at the moment it
-stops is the thing to capture, in particular whether the last line comes from the outgoing stream
-or the incoming one — teardown and new load are different suspects. One synchronous read also
-survives in the stream-information dialog, which is user-initiated and occasional rather than a
-heartbeat; it is listed here so it is found deliberately rather than by surprise.
+### What is still true about those channels — **known, not scheduled**
+
+They still do not play. BBC publishes its HEVC streams only as DASH manifests
+(`hevc_iptv_mse_v0.mpd`), whose fragments 404 against a live edge mpv computes minutes ahead of the
+real one — the same fault already recorded in `core/streamcheck.py` for BBC One Northern Ireland,
+where the channel's HLS URL played fine. All seven HEVC-labelled entries in `index.country.m3u` are
+on those hosts, and five are geo-blocked besides. Upstream Hypnotix would wedge on them identically
+and has no recovery at all, which is probably why this has never been pinned down: the symptom
+arrives on the *next* channel, not the one that caused it.
+
+Recovery costs something worth writing down. Each occurrence permanently retains an abandoned mpv
+instance and its hidden video widget, because neither can be released while the other is live. That
+is bounded by how often a stream wedges — rare — but it is a leak, and a session that triggered it
+repeatedly would grow.
+
+Blocking those seven entries would avoid the recovery entirely, and was considered. It is not done
+because the codec is not the fault: HEVC decoding never fails here, DASH delivery does, and a rule
+naming HEVC would mislabel the reason in the UI while missing the next provider that serves the
+same manifests. If it is ever wanted, `resources/blocklist.json` takes a `host_suffix` and the
+hosts are `vs-cmaf-push*.akamaized.net`.
 
 ## 12. What must stay recognisable
 
