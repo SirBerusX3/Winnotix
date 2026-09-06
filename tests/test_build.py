@@ -205,3 +205,76 @@ def test_one_commit_behind_reads_as_singular():
     upstream = upstream_module()
     said = upstream.describe({"level": False, "behind": 1, "carried_changed": []})
     assert "1 commit ahead" in said
+
+
+# ---------------------------------------------------------------------------
+# The virtualenv
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def venv(tmp_path, monkeypatch):
+    """A stand-in .venv, complete enough for the checks to have something to read."""
+    root = tmp_path / ".venv"
+    (root / "Scripts").mkdir(parents=True)
+    (root / "bin").mkdir()
+    (root / "Scripts" / "python.exe").write_bytes(b"MZ")
+    (root / "bin" / "python").write_bytes(b"")
+    monkeypatch.setattr(build, "VENV", root)
+    return root
+
+
+def write_cfg(venv, **entries) -> None:
+    (venv / "pyvenv.cfg").write_text(
+        "".join(f"{key} = {value}\n" for key, value in entries.items()),
+        encoding="utf-8")
+
+
+def test_a_venv_built_from_a_live_python_is_usable(venv, tmp_path):
+    python = tmp_path / "Python314" / "python.exe"
+    python.parent.mkdir()
+    python.write_bytes(b"MZ")
+    write_cfg(venv, home=str(python.parent), executable=str(python), version="3.14.7")
+
+    assert build.venv_unusable_reason() is None
+
+
+def test_a_venv_whose_python_has_gone_is_unusable(venv):
+    """The case this exists for: the Windows user folder was renamed.
+
+    Everything inside .venv still looks fine -- the launcher is right where we
+    expect it -- but it hardcodes an interpreter path that no longer resolves.
+    """
+    gone = r"C:\Users\theoldname\AppData\Local\Programs\Python\Python314"
+    write_cfg(venv, home=gone, executable=gone + r"\python.exe")
+
+    reason = build.venv_unusable_reason()
+    assert reason is not None
+    assert "theoldname" in reason
+
+
+def test_a_venv_with_no_config_is_unusable(venv):
+    assert "pyvenv.cfg" in (build.venv_unusable_reason() or "")
+
+
+def test_an_unusable_venv_is_replaced_rather_than_trusted(venv, monkeypatch):
+    """A broken venv must not be reported as "present" -- every command after
+    ensure_venv() would then fail on it."""
+    write_cfg(venv, home=r"C:\Users\theoldname\Python314")
+    created = []
+    monkeypatch.setattr(build, "run", lambda cmd, **kw: created.append(cmd))
+
+    build.ensure_venv()
+
+    assert not venv.exists() or created, "the stale venv was left in place"
+    assert created and "venv" in created[0]
+
+
+def test_a_healthy_venv_is_left_alone(venv, monkeypatch, tmp_path):
+    python = tmp_path / "Python314" / "python.exe"
+    python.parent.mkdir()
+    python.write_bytes(b"MZ")
+    write_cfg(venv, home=str(python.parent), executable=str(python))
+    monkeypatch.setattr(build, "run", lambda cmd, **kw: pytest.fail(
+        "a working venv was rebuilt"))
+
+    build.ensure_venv()

@@ -108,11 +108,60 @@ def find_7zip() -> str | None:
 # Setup steps
 # ---------------------------------------------------------------------------
 
+def venv_unusable_reason() -> str | None:
+    """Why the virtualenv on disk cannot be used, or None if it looks fine.
+
+    A virtualenv is not relocatable: pyvenv.cfg records the absolute path of
+    the interpreter it was built from, and every launcher in Scripts/ hardcodes
+    it. Rename the Windows user folder -- or reinstall Windows, or move the
+    repo -- and the venv keeps pointing at a path that is no longer there. The
+    .exe is still sitting where we expect, so a plain is_file() check says all
+    is well, and then every command after it dies with "did not find executable
+    at ...". Read the recorded path and check it instead.
+    """
+    config = VENV / "pyvenv.cfg"
+    if not config.is_file():
+        return f"{config.name} is missing"
+
+    recorded = {}
+    for line in config.read_text(encoding="utf-8", errors="replace").splitlines():
+        key, sep, value = line.partition("=")
+        if sep:
+            recorded[key.strip()] = value.strip()
+
+    # `executable` is the more precise of the two, but it is not written by
+    # every Python, so fall back to `home` -- the directory holding it.
+    base = recorded.get("executable")
+    if base and not Path(base).is_file():
+        return f"built from {base}, which is no longer there"
+
+    home = recorded.get("home")
+    if home and not Path(home).is_dir():
+        return f"built from {home}, which is no longer there"
+
+    if not base and not home:
+        return f"{config.name} records no interpreter to check"
+    return None
+
+
 def ensure_venv() -> None:
     if venv_python().is_file():
-        say(f"virtualenv present: {VENV}")
-        return
-    step(f"Creating virtualenv at {VENV}")
+        unusable = venv_unusable_reason()
+        if unusable is None:
+            say(f"virtualenv present: {VENV}")
+            return
+        step(f"Replacing the virtualenv at {VENV}")
+        say(unusable)
+        try:
+            shutil.rmtree(VENV)
+        except OSError as error:
+            raise Failure(
+                f"could not remove the unusable virtualenv at {VENV}: {error}\n"
+                "Close anything holding it open (an editor, a running Winnotix) "
+                "and try again."
+            ) from error
+    else:
+        step(f"Creating virtualenv at {VENV}")
     run([sys.executable, "-m", "venv", str(VENV)])
     say("created")
 
@@ -448,15 +497,21 @@ def cmd_doctor(args) -> int:
     print(f"  {'repo':<18} {ROOT}")
     print(f"  {'system python':<18} {sys.version.split()[0]} ({sys.executable})")
 
-    if venv_python().is_file():
+    venv_ok = False
+    if not venv_python().is_file():
+        print(f"  {'venv python':<18} MISSING — run: python build.py setup")
+        ok = False
+    elif (unusable := venv_unusable_reason()) is not None:
+        print(f"  {'venv python':<18} UNUSABLE ({unusable})"
+              f" — run: python build.py setup")
+        ok = False
+    else:
+        venv_ok = True
         version = subprocess.run(
             [str(venv_python()), "--version"], capture_output=True, text=True,
             encoding="utf-8", errors="replace",
         ).stdout.strip()
         print(f"  {'venv python':<18} {version}")
-    else:
-        print(f"  {'venv python':<18} MISSING — run: python build.py setup")
-        ok = False
 
     dll = find_mpv_dll()
     if dll is not None:
@@ -468,7 +523,7 @@ def cmd_doctor(args) -> int:
 
     check = (subprocess.run([str(venv_python()), "-m", "PyInstaller", "--version"],
                             capture_output=True, text=True)
-             if venv_python().is_file() else None)
+             if venv_ok else None)
     if check is not None and check.returncode == 0:
         print(f"  {'PyInstaller':<18} {check.stdout.strip()}")
     else:
@@ -477,7 +532,7 @@ def cmd_doctor(args) -> int:
     seven = find_7zip()
     print(f"  {'7-Zip':<18} {seven or 'not found (only needed to fetch libmpv)'}")
 
-    if venv_python().is_file():
+    if venv_ok:
         probe = subprocess.run(
             [str(venv_python()), "-c",
              "import PySide6, mpv, requests; "
