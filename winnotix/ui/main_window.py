@@ -1200,13 +1200,36 @@ class MainWindow(QMainWindow):
         Reopening is the point, not a retry of something that failed: the stream
         is still being delivered, and a fresh demuxer is what picks up the
         program that replaced the one mpv was following.
+
+        The reopen itself goes to a worker thread. `play()` reaches libmpv
+        through `_mpv_command_node`, which is synchronous, and reopening
+        reinitialises a video output bound to a window this thread owns -- so on
+        a core already wedged retrying a dead stream it can block, and blocking
+        here freezes the window. Reported from use against BBC's DASH channels:
+        the status line said reconnecting, and then the app locked up.
+
+        libmpv's command API is thread-safe, so this is a legitimate place to
+        call it from; what is not legitimate is calling it automatically, once
+        every stall, from the thread that has to stay answering.
         """
         channel = self.active_channel
         self.status.set_status(f"{channel.name} stopped sending — reconnecting…")
+        self._reopen_off_thread(channel)
+
+    @async_function
+    def _reopen_off_thread(self, channel) -> None:
+        """Worker thread. Nothing here may touch a widget."""
+        player = self.mpv
+        if player is None:
+            return  # shutting down between the decision and the act
         try:
-            self.mpv.play(channel.url)
+            player.play(channel.url)
         except Exception as exc:
-            self.status.set_status(f"Could not reconnect to {channel.name}: {exc}")
+            self._reopen_failed(channel.name, str(exc))
+
+    @idle_function
+    def _reopen_failed(self, name: str, message: str) -> None:
+        self.status.set_status(f"Could not reconnect to {name}: {message}")
 
     def _on_playback_failed(self, channel, reason: str) -> None:
         if channel is None or channel is not self.active_channel:

@@ -332,3 +332,39 @@ def test_nothing_is_withdrawn_when_nothing_was_said():
 
     clock.advance(1.0)
     assert watch.sample(position + 1.0) is None
+
+
+def test_the_automatic_reopen_does_not_run_on_the_gui_thread():
+    """`play()` is synchronous and reopening reinitialises the video output.
+
+    On a core wedged retrying a dead stream that call can block, and blocking on
+    the GUI thread freezes the window -- reported from use against BBC's DASH
+    channels, where the status line said reconnecting and then the app locked
+    up. Switching channels by hand has always done this and is recorded in
+    roadmap.md section 11; doing it automatically, once per stall, is not
+    something to leave on that thread.
+
+    Read from source rather than called, for the reason given above.
+    """
+    import ast
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parent.parent
+              / "winnotix" / "ui" / "main_window.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+
+    def function(name):
+        return next((n for n in ast.walk(tree)
+                     if isinstance(n, ast.FunctionDef) and n.name == name), None)
+
+    caller = function("_reload_stalled_channel")
+    assert caller is not None, "_reload_stalled_channel has been renamed or removed"
+    plays = [n.attr for n in ast.walk(caller)
+             if isinstance(n, ast.Attribute) and n.attr in {"play", "loadfile", "command"}]
+    assert not plays, f"_reload_stalled_channel reopens on the GUI thread: {plays}"
+
+    worker = function("_reopen_off_thread")
+    assert worker is not None, "_reopen_off_thread has been renamed or removed"
+    decorators = [d.id for d in worker.decorator_list if isinstance(d, ast.Name)]
+    assert "async_function" in decorators, (
+        f"_reopen_off_thread is not on a worker thread: {decorators}")
