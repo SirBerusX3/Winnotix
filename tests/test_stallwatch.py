@@ -532,3 +532,27 @@ def test_the_replacement_gets_its_own_video_surface():
 
     assert any(isinstance(n, ast.FunctionDef) and n.name == "replace_video"
                for n in ast.walk(pages)), "ChannelsPage cannot replace its video surface"
+
+
+def test_the_abandoned_video_surface_is_not_destroyed():
+    """Its renderer is still running; that is why the player was abandoned.
+
+    Reported from use: destroying the old VideoWidget while the abandoned mpv
+    still held its handle left an app that kept painting and stopped answering
+    any click, needing a force-quit -- worse than the fault it was recovering
+    from.
+    """
+    import ast
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parent.parent
+              / "winnotix" / "ui" / "pages.py").read_text(encoding="utf-8")
+    replace = next((n for n in ast.walk(ast.parse(source))
+                    if isinstance(n, ast.FunctionDef) and n.name == "replace_video"), None)
+    assert replace is not None, "replace_video has been renamed or removed"
+
+    destructive = [n.func.attr for n in ast.walk(replace)
+                   if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                   and n.func.attr in {"deleteLater", "setParent", "close", "destroy"}]
+    assert not destructive, (
+        f"replace_video destroys a surface a live renderer still holds: {destructive}")

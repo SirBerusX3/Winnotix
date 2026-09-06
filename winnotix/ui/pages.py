@@ -322,6 +322,7 @@ class ChannelsPage(QWidget):
 
         self.video = VideoWidget()
         self._video_slot = None  # the layout position, kept for replace_video
+        self._abandoned_video: list[VideoWidget] = []
 
         player = QWidget()
         player_layout = QVBoxLayout(player)
@@ -396,17 +397,22 @@ class ChannelsPage(QWidget):
         after a replacement, the next channel played its audio while the picture
         stayed frozen on the stream that had failed.
 
-        So the replacement gets a surface of its own. The old widget is dropped
-        from the layout and left to Qt to delete once the player holding it has
-        finished going away.
+        So the replacement gets a surface of its own, and the old one is kept
+        rather than destroyed -- see the comment below, which cost an app that
+        painted normally and answered nothing.
         """
         layout = self._video_slot
         old = self.video
         index = layout.indexOf(old)
         layout.removeWidget(old)
         old.hide()
-        old.setParent(None)
-        old.deleteLater()
+        # Kept alive, not deleted, and not reparented either. The player that
+        # would not let go of this handle is still running -- that is why it was
+        # abandoned rather than stopped -- and destroying the native window out
+        # from under a live renderer took the whole app with it: the window kept
+        # painting and stopped answering anything. It is hidden and held until
+        # the process ends, on the same terms as the player holding it.
+        self._abandoned_video.append(old)
 
         self.video = VideoWidget()
         layout.insertWidget(index, self.video, 1)
