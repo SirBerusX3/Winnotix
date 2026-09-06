@@ -33,6 +33,7 @@ import time
 #: Returned by :meth:`StallWatch.sample`.
 RELOAD = "reload"
 GIVE_UP = "give-up"
+REPORT = "report"
 
 # How long `time-pos` must stand still before it counts as stopped rather than
 # stuttering. Long enough to sit out a rebuffer on a slow connection; short
@@ -78,13 +79,29 @@ class StallWatch:
         """Reloads issued since the last spell of healthy playback."""
         return self._attempts
 
-    def reset(self) -> None:
-        """Start over: a different channel, or playback stopped."""
+    def reset(self, *, live: bool = True) -> None:
+        """Start over: a different channel, or playback stopped.
+
+        `live` decides what a stall is worth doing something about. Reopening a
+        live stream costs nothing -- it rejoins at the live edge, which is where
+        the viewer already was. Reopening a film restarts it from the beginning
+        and loses their place, which is a worse outcome than the stall and one
+        they never had before this watch existed. So non-live content gets
+        :data:`REPORT` instead: the viewer is told, and the remedy is left to
+        them, because seeking is a remedy they have and a live viewer does not.
+
+        The caller decides which this is. There is no reliable signal in the
+        stream itself -- measured against Pluto's live HLS, mpv reports
+        `seekable=True` and a `duration` of 94138s, the latter an artefact of a
+        wrapped 33-bit MPEG-TS timestamp. Neither distinguishes it from a film.
+        """
+        self._live = live
         self._last_pos: float | None = None
         self._moved_at: float = self._clock()
         self._reloaded_at: float | None = None
         self._attempts = 0
         self._gave_up = False
+        self._reported = False
 
     def sample(self, time_pos: float | None, *, paused: bool = False) -> str | None:
         """Feed one observation of `time-pos`. Returns an action, or None.
@@ -108,6 +125,7 @@ class StallWatch:
 
         if moved:
             self._moved_at = now
+            self._reported = False
             if (self._reloaded_at is not None
                     and now - self._reloaded_at >= self.settle_seconds):
                 # It has played cleanly for a while: forget the earlier trouble.
@@ -124,6 +142,14 @@ class StallWatch:
 
         if now - self._moved_at < self.stall_seconds:
             return None
+
+        if not self._live:
+            # Said once. Repeating it every tick would be nagging about
+            # something the viewer has already been told and can already fix.
+            if self._reported:
+                return None
+            self._reported = True
+            return REPORT
 
         if self._attempts >= self.max_attempts:
             if self._gave_up:

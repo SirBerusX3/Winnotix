@@ -11,7 +11,7 @@ Detection is easy; restraint is the hard part. These pin the restraint.
 from __future__ import annotations
 
 from winnotix.core import stallwatch
-from winnotix.core.stallwatch import GIVE_UP, RELOAD, StallWatch
+from winnotix.core.stallwatch import GIVE_UP, RELOAD, REPORT, StallWatch
 
 
 class FakeClock:
@@ -173,6 +173,66 @@ def test_mpv_is_given_a_ca_bundle_that_exists():
     assert bundle is not None, "certifi is a declared dependency"
     assert Path(bundle).is_file()
     assert "BEGIN CERTIFICATE" in Path(bundle).read_text(encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
+# Live versus everything else
+# ---------------------------------------------------------------------------
+
+def test_a_film_is_reported_rather_than_reopened():
+    """Reopening a film restarts it, which is worse than the stall it fixes.
+
+    A live viewer loses nothing to a reload -- it rejoins at the live edge,
+    where they already were. Someone an hour into a film loses the hour, on
+    content that never had the ad-break fault in the first place.
+    """
+    clock = FakeClock()
+    watch = watching(clock)
+    watch.reset(live=False)
+    position = play(watch, clock, 30)
+
+    assert freeze(watch, clock, 30, position) == REPORT
+    assert watch.attempts == 0, "nothing was reopened"
+
+
+def test_a_film_is_told_about_once_rather_than_every_tick():
+    clock = FakeClock()
+    watch = watching(clock)
+    watch.reset(live=False)
+    position = play(watch, clock, 30)
+
+    verdicts = []
+    for _ in range(300):
+        clock.advance(1.0)
+        verdict = watch.sample(position)
+        if verdict is not None:
+            verdicts.append(verdict)
+
+    assert verdicts == [REPORT], f"nagged: {verdicts}"
+
+
+def test_a_film_that_recovers_can_be_reported_again_later():
+    """Two separate stalls are two pieces of news, not one repeated."""
+    clock = FakeClock()
+    watch = watching(clock)
+    watch.reset(live=False)
+    position = play(watch, clock, 30)
+
+    assert freeze(watch, clock, 30, position) == REPORT
+    position = play(watch, clock, 60, start=position)
+    assert freeze(watch, clock, 30, position) == REPORT
+
+
+def test_live_is_still_reopened_after_the_distinction():
+    """The default is live, so the ad-break fix is not lost to this change."""
+    clock = FakeClock()
+    watch = watching(clock)
+    position = play(watch, clock, 30)
+    assert freeze(watch, clock, 30, position) == RELOAD
+
+    other = watching(FakeClock())
+    other.reset(live=True)
+    assert other.attempts == 0
 
 
 # ---------------------------------------------------------------------------

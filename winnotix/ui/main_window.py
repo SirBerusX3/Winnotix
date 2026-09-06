@@ -1150,6 +1150,11 @@ class MainWindow(QMainWindow):
         verdict = self._stall.sample(self._time_pos, paused=self._paused)
         if verdict == stallwatch.RELOAD:
             self._reload_stalled_channel()
+        elif verdict == stallwatch.REPORT:
+            # Not live, so reopening would restart it and lose their place.
+            self.status.set_status(
+                f"{self.active_channel.name} has stopped — seek, or play it "
+                "again, to pick it back up.")
         elif verdict == stallwatch.GIVE_UP:
             name = self.active_channel.name
             self.status.set_status(
@@ -1233,8 +1238,9 @@ class MainWindow(QMainWindow):
         self.status.set_status(f"Playing {channel.name}")
         self._show_playing_with_guide(channel)
         # A new channel starts with a clean record, and without the previous
-        # one's last position still sitting in the cache.
-        self._stall.reset()
+        # one's last position still sitting in the cache. Only live TV is
+        # reopened automatically -- see StallWatch.reset.
+        self._stall.reset(live=self.content_type == TV_GROUP)
         self._time_pos = None
         try:
             self.mpv.play(channel.url)
