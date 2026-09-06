@@ -1,5 +1,7 @@
 # ![shadow](https://imglink.cc/cdn/DcEzN0VkW8.png)  Winnotix 
 
+[![Tests](https://github.com/SirBerusX3/Winnotix/actions/workflows/tests.yml/badge.svg)](https://github.com/SirBerusX3/Winnotix/actions/workflows/tests.yml)
+
 ![Winnotix playing UN Web TV, split diagonally: the light theme on the left with the channel list, the dark theme on the right with the header and player](assets/splitexample.png)
 
 
