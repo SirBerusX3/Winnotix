@@ -471,6 +471,42 @@ which was expected — but matching its channels through iptv-org's ids does not
 only 9 of its 2,053 entries classify as series and 30 as movies. This is an iptv-org feature, and
 the default provider gains almost nothing from it.
 
+### Playback commands still run on the GUI thread — **latent; named because it is not reproducing**
+
+`player.play(url)` reaches libmpv through `_mpv_command_node`, which is the *synchronous*
+command API: it blocks its caller until mpv's core has processed the command. Every channel
+switch does this from the Qt GUI thread, and so does the stall watch's reload
+(`_reload_stalled_channel`). That is a deadlock shape — the core can be waiting on the video
+output, the video output wants the GUI thread, and the GUI thread is sitting inside libmpv.
+
+**The same hazard has already bitten once, elsewhere.** `cae3101` polled `time-pos` and `pause`
+with `mpv_get_property` — also synchronous — once a second from the GUI thread. On 2026-09-06 the
+window hung hard enough to need a force-quit, on a geo-blocked Xumo channel, and `70e6250`
+replaced that poll with observed properties pushed from mpv's event thread. It has not recurred
+since: not on a cold launch, and not on a Pluto → Filmex switch, which was the sequence that
+produced it.
+
+**What is unproven is which call was the blocker.** The heartbeat was a known-real defect and is
+gone. `loadfile` is a hazard of the same class that remains, and no measurement ever caught it —
+a headless harness cannot reproduce any of this, because `vo=null` has no video output to deadlock
+against, and a video output is the one thing the app has that the harness does not.
+
+Worth keeping the arithmetic in mind before treating the two as equivalent. A once-a-second read
+gives thousands of chances to collide across an evening's viewing; a per-switch command gives a
+handful. Session length correlating with the hang is explained by the first and not by the second,
+which is the main reason this is parked rather than scheduled.
+
+**Parked because the fix is disproportionate to the evidence.** Moving playback initiation off the
+GUI thread means reworking the core playback path — inherited from upstream's design, working, and
+exercised on every channel change — against a fault that is not currently reproducing. Reworking a
+working path on suspicion is how a fixed bug becomes two new ones.
+
+**What would un-park it:** a hang that recurs on switching channels. The terminal at the moment it
+stops is the thing to capture, in particular whether the last line comes from the outgoing stream
+or the incoming one — teardown and new load are different suspects. One synchronous read also
+survives in the stream-information dialog, which is user-initiated and occasional rather than a
+heartbeat; it is listed here so it is found deliberately rather than by surprise.
+
 ## 12. What must stay recognisable
 
 Winnotix is not a fork. It has its own history, its own UI toolkit and features Hypnotix has no
