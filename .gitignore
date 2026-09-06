@@ -13,3 +13,8 @@ dist/
 # snapshots are not, since Winnotix always fetches playlists live.
 IPTVrepo/
 newIPTVrepo/
+
+# Terminal captures kept while testing a stream. Useful for a session, quoted
+# into a commit or the changelog when they prove something, and not worth
+# carrying afterwards.
+Terminal Logs.md
