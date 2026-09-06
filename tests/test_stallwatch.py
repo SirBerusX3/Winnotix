@@ -368,3 +368,50 @@ def test_the_automatic_reopen_does_not_run_on_the_gui_thread():
     decorators = [d.id for d in worker.decorator_list if isinstance(d, ast.Name)]
     assert "async_function" in decorators, (
         f"_reopen_off_thread is not on a worker thread: {decorators}")
+
+
+def test_giving_up_stops_the_stream_rather_than_only_saying_so():
+    """A stream left running is a demuxer left retrying, and a busy core.
+
+    Reported from use: after a BBC DASH channel was given up on, backing out and
+    choosing another channel selected it and then played nothing -- the old
+    stream was still churning through its retry loop.
+    """
+    import ast
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parent.parent
+              / "winnotix" / "ui" / "main_window.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+
+    check = next((n for n in ast.walk(tree)
+                  if isinstance(n, ast.FunctionDef) and n.name == "_check_for_stall"), None)
+    assert check is not None
+
+    # The give-up branch has to reach stop_playback, not merely set a status.
+    calls = [n.func.attr for n in ast.walk(check)
+             if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)]
+    assert "stop_playback" in calls, f"giving up does not stop the stream: {calls}"
+
+
+def test_stopping_does_not_run_on_the_gui_thread():
+    """`stop` is a command too, and slowest exactly when the window must answer."""
+    import ast
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parent.parent
+              / "winnotix" / "ui" / "main_window.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+
+    stopper = next((n for n in ast.walk(tree)
+                    if isinstance(n, ast.FunctionDef) and n.name == "stop_playback"), None)
+    assert stopper is not None
+    direct = [n.attr for n in ast.walk(stopper)
+              if isinstance(n, ast.Attribute) and n.attr in {"stop", "command"}]
+    assert not direct, f"stop_playback stops on the GUI thread: {direct}"
+
+    worker = next((n for n in ast.walk(tree)
+                   if isinstance(n, ast.FunctionDef) and n.name == "_stop_off_thread"), None)
+    assert worker is not None, "_stop_off_thread has been renamed or removed"
+    assert "async_function" in [d.id for d in worker.decorator_list
+                                if isinstance(d, ast.Name)]

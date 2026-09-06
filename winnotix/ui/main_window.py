@@ -1186,10 +1186,17 @@ class MainWindow(QMainWindow):
             # running one -- reported from use.
             self.status.set_status(f"Playing {self.active_channel.name}")
         elif verdict == stallwatch.GIVE_UP:
-            name = self.active_channel.name
+            name, attempts = self.active_channel.name, self._stall.attempts
+            # Giving up has to mean stopping, not just saying so. A stream left
+            # running is one whose demuxer keeps retrying -- BBC's DASH channels
+            # reach their hundred-failure limit, give up, and start again -- and
+            # a core busy doing that is why the *next* channel would not load.
+            # Reported from use: backing out to another channel selected it and
+            # then played nothing.
+            self.stop_playback()
             self.status.set_status(
                 f"{name} stopped sending and did not come back after "
-                f"{self._stall.attempts} attempts.")
+                f"{attempts} attempts.")
             self.channels.show_message(
                 f"{name} stopped sending. Reconnecting did not help — the "
                 "channel may be off air.")
@@ -1230,6 +1237,22 @@ class MainWindow(QMainWindow):
     @idle_function
     def _reopen_failed(self, name: str, message: str) -> None:
         self.status.set_status(f"Could not reconnect to {name}: {message}")
+
+    @async_function
+    def _stop_off_thread(self) -> None:
+        """Worker thread. `stop` is a command, and commands are synchronous.
+
+        Same reasoning as `_reopen_off_thread`, and the same reported symptom
+        behind it: stopping a stream whose demuxer is mid-retry is exactly when
+        the call is slowest, which is exactly when the window must stay usable.
+        """
+        player = self.mpv
+        if player is None:
+            return
+        try:
+            player.stop()
+        except Exception:
+            pass  # already gone, or shutting down
 
     def _on_playback_failed(self, channel, reason: str) -> None:
         if channel is None or channel is not self.active_channel:
@@ -1310,11 +1333,7 @@ class MainWindow(QMainWindow):
             pass
 
     def stop_playback(self) -> None:
-        if self.mpv is not None:
-            try:
-                self.mpv.stop()
-            except Exception:
-                pass
+        self._stop_off_thread()
         self.active_channel = None
         self._stall.reset()
         self._time_pos = None
