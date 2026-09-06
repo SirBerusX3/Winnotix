@@ -1221,10 +1221,10 @@ class MainWindow(QMainWindow):
         """
         channel = self.active_channel
         self.status.set_status(f"{channel.name} stopped sending — reconnecting…")
-        self._reopen_off_thread(channel)
+        self._open_off_thread(channel, reconnecting=True)
 
     @async_function
-    def _reopen_off_thread(self, channel) -> None:
+    def _open_off_thread(self, channel, reconnecting: bool = False) -> None:
         """Worker thread. Nothing here may touch a widget."""
         player = self.mpv
         if player is None:
@@ -1232,17 +1232,21 @@ class MainWindow(QMainWindow):
         try:
             player.play(channel.url)
         except Exception as exc:
-            self._reopen_failed(channel.name, str(exc))
+            self._open_failed(channel.name, str(exc), reconnecting)
 
     @idle_function
-    def _reopen_failed(self, name: str, message: str) -> None:
-        self.status.set_status(f"Could not reconnect to {name}: {message}")
+    def _open_failed(self, name: str, message: str, reconnecting: bool) -> None:
+        if reconnecting:
+            self.status.set_status(f"Could not reconnect to {name}: {message}")
+            return
+        self.status.set_status(f"Could not play {name}: {message}")
+        self.channels.show_message(f"{name} would not play — {message}")
 
     @async_function
     def _stop_off_thread(self) -> None:
         """Worker thread. `stop` is a command, and commands are synchronous.
 
-        Same reasoning as `_reopen_off_thread`, and the same reported symptom
+        Same reasoning as `_open_off_thread`, and the same reported symptom
         behind it: stopping a stream whose demuxer is mid-retry is exactly when
         the call is slowest, which is exactly when the window must stay usable.
         """
@@ -1317,11 +1321,12 @@ class MainWindow(QMainWindow):
         # one's last position still sitting in the cache.
         self._stall.reset(live=self._playing_something_live())
         self._time_pos = None
-        try:
-            self.mpv.play(channel.url)
-        except Exception as exc:
-            self.status.set_status(f"Could not play {channel.name}: {exc}")
-            self.channels.show_message(f"{channel.name} would not play — {exc}")
+        # Off the GUI thread: `play()` is a synchronous libmpv command, and on a
+        # core still unwinding a stream whose demuxer is mid-retry it can block.
+        # Blocking here is the window locking up while choosing a channel --
+        # reported from use against BBC's DASH channels, and parked in
+        # roadmap.md 11 until it had a reproduction. It has one.
+        self._open_off_thread(channel)
 
     def toggle_pause(self) -> None:
         if self.mpv is None or self.active_channel is None:
