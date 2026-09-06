@@ -26,6 +26,22 @@ Numbers are masked when forming the key, because the worst offender is
 textually unique and so, unmasked, each a first occurrence that prints. Masking
 digits makes the whole run share one counter. The line printed is always mpv's
 real text, numbers included.
+
+**What "cheap" means, measured.** The rule is about the work each event does,
+not how many of them there are. `ui/main_window.py` observes `time-pos` to catch
+a stalled stream, and that fires at roughly frame rate: 1,116 callbacks in 40
+seconds of playback, after which `mpvloader.shutdown` still returned cleanly in
+97 ms -- marginally faster than the same run without the observer, and better
+than an order of magnitude inside its 1.5 s timeout. Those handlers assign one
+attribute and do nothing else.
+
+So the storm this module exists for was the *slower* of the two and by far the
+worse, because every one of its messages did I/O. Frequency is not the thing to
+watch on this thread. A handler that writes, blocks, takes a lock, or calls back
+into mpv is -- and note that the third hazard of this shape was neither of
+these: a once-a-second `mpv_get_property` from the *GUI* thread, which deadlocked
+the window (see `_check_for_stall`). Lowest frequency of the three, worst
+outcome. What matters is the cost of one repetition and which thread pays it.
 """
 
 from __future__ import annotations
