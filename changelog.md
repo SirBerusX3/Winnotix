@@ -10,6 +10,72 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
 
 ---
 
+## [0.2.1] - unreleased
+
+### Fixed
+
+- **Pluto TV channels froze at every ad break** (`winnotix/core/stallwatch.py`,
+  `winnotix/ui/main_window.py`). The picture held its last frame, the sound carried on a little
+  longer, and the window stayed responsive — which reads exactly like a graphics fault and is not
+  one. Reported from use, on South Park in iptv-org's Canada list.
+  - **The ad arrives as a new track.** When Pluto splices an advert in it changes the MPEG-TS
+    program, ffmpeg's HLS demuxer exposes the replacement as an additional track rather than
+    continuing the existing one, and mpv stays selected on the track it started with. Measured: at
+    173s the bumper arrived as `--vid=4` beside the show's `--vid=3`, `time-pos` froze at 189.4, and
+    it had not moved 711 seconds later — while segments kept downloading at HTTP 206 throughout.
+    `hwdec` makes no difference in either setting, because no decoder is involved when no packets
+    arrive.
+  - **Nothing reported it.** mpv believes it is still playing, so no `END_FILE` reaches the handler
+    that catches an ordinary failed open. Watching `time-pos` is the whole of the detection, and the
+    difficulty is restraint rather than detection: a hiccup under ten seconds is ridden out, a
+    deliberate pause is not a stall, and forty-five seconds of clean playback forgives earlier
+    trouble — without which an hour of viewing with a break every ten minutes would give up on a
+    channel that recovers every time.
+  - **Reopening is the cure**, because a fresh demuxer picks up whatever program is current. That is
+    what switching channel and back always did by hand. Live content only: reopening a film would
+    restart it and lose the viewer's place, so non-live content is told and left alone, and seeking
+    is a remedy a film viewer has and a live viewer does not.
+
+- **A failing stream could take the whole player with it, and every channel after it**
+  (`winnotix/ui/main_window.py`, `winnotix/ui/pages.py`). Reported from use as one bad channel
+  leaving an app that looked healthy and played nothing until it was restarted.
+  - Some streams do not merely fail. After a run of fragment 404s from BBC's HEVC DASH manifests,
+    mpv accepts `stop` and `loadfile` — both return in 0.00s — and then ignores them: a known-good
+    stream never started on that core and was playing within ten seconds on a fresh one. Reproduced
+    away from the app, and identically with hardware decoding on and off, which puts it in ffmpeg's
+    DASH demuxer rather than in decoding, the GPU, or anything configured here.
+  - So the core is unrecoverable but disposable. Giving up now stops the stream, throws the player
+    away and builds another — on a video surface of its own, since the abandoned player never lets
+    go of the old one and keeps the last frame it drew there. The abandoned pair is hidden and held
+    rather than destroyed: its renderer is still live, and pulling the window out from under it left
+    an app that painted normally and answered no input.
+  - Those channels still do not play. BBC publishes HEVC only as DASH, and the live-edge fault
+    behind the 404s is the one already recorded in `core/streamcheck.py`. They no longer cost
+    anything but themselves.
+
+- **No mpv command runs on the GUI thread any more.** `play`, `stop` and property reads all reach
+  libmpv through its *synchronous* API, which blocks its caller until the core answers — and on a
+  core unwinding a dead stream that is the window locking up, twice reported and twice force-quit.
+  Reads are observed and pushed instead; commands go to a worker. Switching channels by hand had
+  done this since the port began.
+
+- **Winnotix would not start after the Windows user folder was renamed** (`build.py`). A virtualenv
+  records the absolute path of the interpreter it was built from, so a rename strands it — and the
+  launcher is still exactly where the check looked, so setup reported the environment as present and
+  every command after it failed on a path the user had no reason to recognise. The recorded
+  interpreter is now checked, and a venv that cannot be used is replaced rather than trusted.
+
+### Changed
+
+- **mpv verifies TLS against certifi rather than the Windows trust store**
+  (`winnotix/core/mpvloader.py`). A freshly installed Windows carries a sparse root store — 38 roots
+  on the machine this was found on, without `Sectigo Public Server Authentication Root R46`, which
+  is what Pluto's CDN chains to for the AES-128 keys its segments are encrypted with. mpv could not
+  fetch a key, could not decrypt the segment, and skipped it; enough of those in a row and it falls
+  off the live edge. Playback now trusts what the rest of the app already trusted through
+  `requests`, on any machine. Channels also start faster for it, since the failed handshakes are
+  gone from every startup.
+
 ## [0.2.0] - 2026-09-04
 
 ### Added
