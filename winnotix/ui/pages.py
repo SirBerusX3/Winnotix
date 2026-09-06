@@ -321,6 +321,7 @@ class ChannelsPage(QWidget):
         self.message_label.hide()
 
         self.video = VideoWidget()
+        self._video_slot = None  # the layout position, kept for replace_video
 
         player = QWidget()
         player_layout = QVBoxLayout(player)
@@ -329,6 +330,7 @@ class ChannelsPage(QWidget):
         player_layout.addWidget(info_bar)
         player_layout.addWidget(self.message_label)
         player_layout.addWidget(self.video, 1)
+        self._video_slot = player_layout
 
         self.sidebar = QWidget()
         sidebar_layout = QVBoxLayout(self.sidebar)
@@ -383,6 +385,32 @@ class ChannelsPage(QWidget):
     def set_channel(self, channel) -> None:
         self.name_label.setText(channel.name or "")
         self.url_label.setText(channel.url or "")
+
+    def replace_video(self) -> VideoWidget:
+        """Swap in a fresh video surface and return it.
+
+        A window handle cannot be taken back from a player that will not let go
+        of it. When mpv has wedged badly enough to be abandoned rather than
+        stopped, the abandoned instance keeps its video output attached to this
+        handle -- and keeps the last frame it drew on screen. Reported from use:
+        after a replacement, the next channel played its audio while the picture
+        stayed frozen on the stream that had failed.
+
+        So the replacement gets a surface of its own. The old widget is dropped
+        from the layout and left to Qt to delete once the player holding it has
+        finished going away.
+        """
+        layout = self._video_slot
+        old = self.video
+        index = layout.indexOf(old)
+        layout.removeWidget(old)
+        old.hide()
+        old.setParent(None)
+        old.deleteLater()
+
+        self.video = VideoWidget()
+        layout.insertWidget(index, self.video, 1)
+        return self.video
 
     def set_sidebar_visible(self, visible: bool) -> None:
         """Hides the filter with the list: on its own it would filter nothing."""

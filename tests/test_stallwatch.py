@@ -476,7 +476,15 @@ def test_giving_up_replaces_the_player_rather_than_trusting_it():
     inner = [n.func.attr for n in ast.walk(replace)
              if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)]
     assert "_shutdown_mpv" in inner, "the wedged player is never let go of"
-    assert "_create_player" in inner, "no replacement is built"
+
+    # The replacement is built once its surface has a handle, which may be a
+    # signal away -- so the construction lives in _rebuild_on rather than here.
+    built = function("_rebuild_on")
+    assert built is not None, "_rebuild_on has been renamed or removed"
+    assert "_create_player" in [n.func.attr for n in ast.walk(built)
+                                if isinstance(n, ast.Call)
+                                and isinstance(n.func, ast.Attribute)], (
+        "no replacement is built")
 
 
 def test_the_player_can_be_built_more_than_once():
@@ -495,3 +503,32 @@ def test_the_player_can_be_built_more_than_once():
     calls = [n.func.attr for n in ast.walk(ready)
              if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)]
     assert "_create_player" in calls, "the window-ready path no longer builds the player"
+
+
+def test_the_replacement_gets_its_own_video_surface():
+    """A handle cannot be taken back from a player that will not let go.
+
+    Reported from use: after the player was replaced, the next channel played
+    its audio while the picture stayed frozen on the failed stream -- the
+    abandoned instance still owned the window and the last frame it drew.
+    """
+    import ast
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent
+    window = ast.parse((root / "winnotix" / "ui" / "main_window.py")
+                       .read_text(encoding="utf-8"))
+    pages = ast.parse((root / "winnotix" / "ui" / "pages.py")
+                      .read_text(encoding="utf-8"))
+
+    replace = next((n for n in ast.walk(window)
+                    if isinstance(n, ast.FunctionDef)
+                    and n.name == "_replace_wedged_player"), None)
+    assert replace is not None
+    calls = [n.func.attr for n in ast.walk(replace)
+             if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)]
+    assert "replace_video" in calls, (
+        f"the replacement reuses the abandoned player's surface: {calls}")
+
+    assert any(isinstance(n, ast.FunctionDef) and n.name == "replace_video"
+               for n in ast.walk(pages)), "ChannelsPage cannot replace its video surface"

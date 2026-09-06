@@ -1242,8 +1242,22 @@ class MainWindow(QMainWindow):
         player, self.mpv = self.mpv, None
         if player is not None:
             self._shutdown_mpv(player, reason="rebuilding")
+
+        # And a fresh surface with it. The abandoned player may never let go of
+        # the old handle, and it keeps the last frame it drew there: reported
+        # from use as the next channel playing its audio over a picture frozen
+        # on the stream that had failed.
+        video = self.channels.replace_video()
+        if video.wid is not None:
+            self._rebuild_on(video.wid)
+        else:
+            video.wid_ready.connect(self._rebuild_on)
+
+    def _rebuild_on(self, wid: int) -> None:
+        """Build the replacement player, once its surface has a handle."""
+        self._wid = wid
         try:
-            self._create_player(self._wid)
+            self._create_player(wid)
         except Exception as exc:
             self.status.set_status(f"Could not restart the player: {exc}")
             return
