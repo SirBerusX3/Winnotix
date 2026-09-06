@@ -153,6 +153,9 @@ class MainWindow(QMainWindow):
         self._diagnosing: set[str] = set()
         self._stall = stallwatch.StallWatch()
         self._stall_timer: QTimer | None = None
+        # The window handle mpv draws into, kept so the player can be rebuilt
+        # on it -- see _replace_wedged_player.
+        self._wid: int | None = None
         # Written by mpv's event thread, read by the stall timer on this one.
         # See _check_for_stall for why they are pushed rather than fetched.
         self._time_pos: float | None = None
@@ -1005,6 +1008,21 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
 
     def _on_wid_ready(self, wid: int) -> None:
+        self._wid = wid
+        self._create_player(wid)
+
+        self._stall_timer = QTimer(self)
+        self._stall_timer.setInterval(STALL_POLL_MS)
+        self._stall_timer.timeout.connect(self._check_for_stall)
+        self._stall_timer.start()
+
+    def _create_player(self, wid: int) -> None:
+        """Build the player and attach everything that watches it.
+
+        Separate from `_on_wid_ready` because it happens more than once: a core
+        that has wedged cannot be recovered, only replaced. See
+        `_replace_wedged_player`.
+        """
         options = {}
         try:
             mpv_options = self.settings.get_string("mpv-options")
@@ -1043,11 +1061,6 @@ class MainWindow(QMainWindow):
         self.mpv.observe_property("time-pos", self._on_time_pos)
         self.mpv.observe_property("pause", self._on_paused)
         self.mpv.register_event_callback(self._on_mpv_event)
-
-        self._stall_timer = QTimer(self)
-        self._stall_timer.setInterval(STALL_POLL_MS)
-        self._stall_timer.timeout.connect(self._check_for_stall)
-        self._stall_timer.start()
 
     # -- subtitles -----------------------------------------------------
 
@@ -1200,6 +1213,43 @@ class MainWindow(QMainWindow):
             self.channels.show_message(
                 f"{name} stopped sending. Reconnecting did not help — the "
                 "channel may be off air.")
+            self._replace_wedged_player()
+
+    def _replace_wedged_player(self) -> None:
+        """Throw the player away and build another on the same window.
+
+        Some streams do not merely fail, they take the core with them. BBC's
+        HEVC channels are DASH manifests whose fragments 404; after a run of
+        those, mpv accepts `stop` and `loadfile` -- both return immediately --
+        and then plays nothing at all, for any URL. Reported from use as every
+        channel refusing to load after one bad one, and reproduced headlessly,
+        so this is core state rather than anything to do with threads or the
+        window.
+
+        Measured: on the wedged core a known-good stream never started; on a
+        fresh one it was playing in seconds. `mpvloader.shutdown` returns False
+        for the wedged player -- it never reaches SHUTDOWN, which is the case
+        its timeout was written for -- and the abandoned instance goes when the
+        process does.
+
+        Done on every give-up rather than only when the core is provably dead,
+        because proving it costs more than replacing it: the channel is already
+        stopped, so the price is a second or two, and the alternative is leaving
+        an app that looks fine and plays nothing.
+        """
+        if self._wid is None:
+            return  # no window yet: nothing was ever built to replace
+        player, self.mpv = self.mpv, None
+        if player is not None:
+            self._shutdown_mpv(player, reason="rebuilding")
+        try:
+            self._create_player(self._wid)
+        except Exception as exc:
+            self.status.set_status(f"Could not restart the player: {exc}")
+            return
+        self._stall.reset()
+        self._time_pos = None
+        self._paused = False
 
     def _reload_stalled_channel(self) -> None:
         """Reopen the current channel where it stands.
@@ -1670,7 +1720,15 @@ class MainWindow(QMainWindow):
             self._shutdown_mpv(player)
         super().closeEvent(event)
 
-    def _shutdown_mpv(self, player) -> None:
+    def _shutdown_mpv(self, player, *, reason: str = "closing") -> None:
+        """Stop `player`, and say so when it would not stop.
+
+        A False return is not noise: it means the core never reached SHUTDOWN,
+        which is what a wedged one does. Worth printing, because it is the one
+        line that distinguishes "this stream failed" from "this stream took the
+        player with it".
+        """
         if not mpvloader.shutdown(player, event_callback=self._on_mpv_event,
                                   timeout=MPV_SHUTDOWN_TIMEOUT):
-            print("[winnotix] mpv did not shut down in time; closing anyway.")
+            print(f"[winnotix] mpv would not stop in time; {reason} anyway. "
+                  "The abandoned player goes when the process does.")

@@ -440,3 +440,58 @@ def test_choosing_a_channel_does_not_open_it_on_the_gui_thread():
     direct = [n.attr for n in ast.walk(activated)
               if isinstance(n, ast.Attribute) and n.attr in {"play", "loadfile", "command"}]
     assert not direct, f"on_channel_activated opens on the GUI thread: {direct}"
+
+
+def test_giving_up_replaces_the_player_rather_than_trusting_it():
+    """Some streams do not fail, they take the core with them.
+
+    Measured against BBC's HEVC DASH channels: after a run of fragment 404s,
+    mpv accepts `stop` and `loadfile` -- both return immediately -- and then
+    plays nothing at all, for any URL. A known-good stream never started on that
+    core and was playing within seconds on a fresh one, so the player has to be
+    replaced rather than reused.
+
+    Read from source: importing winnotix.ui.main_window would load libmpv, which
+    the test workflow does not install.
+    """
+    import ast
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parent.parent
+              / "winnotix" / "ui" / "main_window.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+
+    def function(name):
+        return next((n for n in ast.walk(tree)
+                     if isinstance(n, ast.FunctionDef) and n.name == name), None)
+
+    check = function("_check_for_stall")
+    calls = [n.func.attr for n in ast.walk(check)
+             if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)]
+    assert "_replace_wedged_player" in calls, (
+        f"giving up leaves a possibly wedged player in place: {calls}")
+
+    replace = function("_replace_wedged_player")
+    assert replace is not None, "_replace_wedged_player has been renamed or removed"
+    inner = [n.func.attr for n in ast.walk(replace)
+             if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)]
+    assert "_shutdown_mpv" in inner, "the wedged player is never let go of"
+    assert "_create_player" in inner, "no replacement is built"
+
+
+def test_the_player_can_be_built_more_than_once():
+    """Construction has to be separable from the one-shot window-ready signal."""
+    import ast
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parent.parent
+              / "winnotix" / "ui" / "main_window.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    names = {n.name for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+    assert {"_on_wid_ready", "_create_player"} <= names
+
+    ready = next(n for n in ast.walk(tree)
+                 if isinstance(n, ast.FunctionDef) and n.name == "_on_wid_ready")
+    calls = [n.func.attr for n in ast.walk(ready)
+             if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)]
+    assert "_create_player" in calls, "the window-ready path no longer builds the player"
