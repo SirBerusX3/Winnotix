@@ -1128,6 +1128,31 @@ class MainWindow(QMainWindow):
             return
         self.playback_failed.emit(self.active_channel, reason)
 
+    def _playing_something_live(self) -> bool:
+        """Whether reopening the current item would cost the viewer anything.
+
+        Reopening a live channel rejoins the live edge, which is where the
+        viewer already was. Reopening a film restarts it. So this decides which
+        the stall watch is allowed to do -- see StallWatch.reset.
+
+        The tile it was opened from is *not* the answer on its own, which is
+        what the first version of this got wrong. For an M3U provider the Movies
+        and Series tiles are a genre browse over live channels
+        (`on_category_clicked` hands them `group.channels`), so a Pluto channel
+        opened from Movies is live despite `content_type` saying otherwise --
+        reported from use, as a live channel being told to seek.
+
+        Real VOD, with a beginning and an end to lose your place in, comes from
+        an Xtream provider. Everything an M3U provider offers is a stream.
+        """
+        if self.content_type == TV_GROUP:
+            return True
+        if getattr(self.active_group, genres.ROUTED_FLAG, False):
+            return True  # a genre browse, holding channels rather than films
+        provider = self.active_provider
+        return (provider is None
+                or getattr(provider, "type_id", "") != P.PROVIDER_TYPE_XTREAM)
+
     def _check_for_stall(self) -> None:
         """Main thread, once a second. The policy lives in core/stallwatch.py.
 
@@ -1155,6 +1180,11 @@ class MainWindow(QMainWindow):
             self.status.set_status(
                 f"{self.active_channel.name} has stopped — seek, or play it "
                 "again, to pick it back up.")
+        elif verdict == stallwatch.RESUMED:
+            # It is playing again, so whatever was said about it has stopped
+            # being true. Leaving it up describes a stopped stream over a
+            # running one -- reported from use.
+            self.status.set_status(f"Playing {self.active_channel.name}")
         elif verdict == stallwatch.GIVE_UP:
             name = self.active_channel.name
             self.status.set_status(
@@ -1238,9 +1268,8 @@ class MainWindow(QMainWindow):
         self.status.set_status(f"Playing {channel.name}")
         self._show_playing_with_guide(channel)
         # A new channel starts with a clean record, and without the previous
-        # one's last position still sitting in the cache. Only live TV is
-        # reopened automatically -- see StallWatch.reset.
-        self._stall.reset(live=self.content_type == TV_GROUP)
+        # one's last position still sitting in the cache.
+        self._stall.reset(live=self._playing_something_live())
         self._time_pos = None
         try:
             self.mpv.play(channel.url)

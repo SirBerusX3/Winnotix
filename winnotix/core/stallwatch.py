@@ -34,6 +34,7 @@ import time
 RELOAD = "reload"
 GIVE_UP = "give-up"
 REPORT = "report"
+RESUMED = "resumed"
 
 # How long `time-pos` must stand still before it counts as stopped rather than
 # stuttering. Long enough to sit out a rebuffer on a slow connection; short
@@ -125,14 +126,18 @@ class StallWatch:
 
         if moved:
             self._moved_at = now
+            # Something was said about this stream and it is no longer true.
+            # A status line that stays up after playback comes back is worse
+            # than none: it describes the stream as stopped while it plays.
+            recovered = self._reported or self._gave_up
             self._reported = False
+            self._gave_up = False
             if (self._reloaded_at is not None
                     and now - self._reloaded_at >= self.settle_seconds):
                 # It has played cleanly for a while: forget the earlier trouble.
                 self._attempts = 0
                 self._reloaded_at = None
-                self._gave_up = False
-            return None
+            return RESUMED if recovered else None
 
         # Standing still. A reload already in flight gets its grace period
         # before the result is judged.

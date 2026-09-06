@@ -11,7 +11,8 @@ Detection is easy; restraint is the hard part. These pin the restraint.
 from __future__ import annotations
 
 from winnotix.core import stallwatch
-from winnotix.core.stallwatch import GIVE_UP, RELOAD, REPORT, StallWatch
+from winnotix.core.stallwatch import (
+    GIVE_UP, RELOAD, REPORT, RESUMED, StallWatch)
 
 
 class FakeClock:
@@ -35,7 +36,9 @@ def play(watch, clock, seconds: float, *, start: float = 0.0) -> float:
     for _ in range(int(seconds)):
         clock.advance(1.0)
         position += 1.0
-        assert watch.sample(position) is None, "healthy playback asked for a reload"
+        verdict = watch.sample(position)
+        # RESUMED is healthy too: it is the watch withdrawing something it said.
+        assert verdict in (None, RESUMED), f"healthy playback returned {verdict}"
     return position
 
 
@@ -268,3 +271,64 @@ def test_the_stall_check_never_calls_into_mpv():
              if isinstance(node, ast.Attribute)
              and node.attr in {"_get_property", "_set_property", "command", "wait_for_property"}]
     assert not reads, f"_check_for_stall calls into mpv synchronously: {reads}"
+
+
+# ---------------------------------------------------------------------------
+# Withdrawing what it said
+# ---------------------------------------------------------------------------
+
+def test_a_recovered_film_withdraws_the_message():
+    """A status line outliving the problem describes a stopped stream as it plays.
+
+    Reported from use: the message stayed up until the channel was reloaded,
+    rather than clearing when playback came back.
+    """
+    clock = FakeClock()
+    watch = watching(clock)
+    watch.reset(live=False)
+    position = play(watch, clock, 30)
+    assert freeze(watch, clock, 30, position) == REPORT
+
+    clock.advance(1.0)
+    assert watch.sample(position + 1.0) == RESUMED
+
+
+def test_the_withdrawal_is_said_once():
+    clock = FakeClock()
+    watch = watching(clock)
+    watch.reset(live=False)
+    position = play(watch, clock, 30)
+    freeze(watch, clock, 30, position)
+
+    verdicts = []
+    for _ in range(30):
+        clock.advance(1.0)
+        position += 1.0
+        verdict = watch.sample(position)
+        if verdict is not None:
+            verdicts.append(verdict)
+    assert verdicts == [RESUMED]
+
+
+def test_a_live_stream_that_was_given_up_on_withdraws_it_too():
+    clock = FakeClock()
+    watch = watching(clock)
+    position = play(watch, clock, 30)
+    for _ in range(400):
+        clock.advance(1.0)
+        if watch.sample(position) == GIVE_UP:
+            break
+
+    clock.advance(1.0)
+    assert watch.sample(position + 1.0) == RESUMED
+
+
+def test_nothing_is_withdrawn_when_nothing_was_said():
+    """A reload alone is not something to withdraw -- the status moves on anyway."""
+    clock = FakeClock()
+    watch = watching(clock)
+    position = play(watch, clock, 30)
+    assert freeze(watch, clock, 30, position) == RELOAD
+
+    clock.advance(1.0)
+    assert watch.sample(position + 1.0) is None
