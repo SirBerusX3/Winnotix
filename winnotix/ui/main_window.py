@@ -153,6 +153,10 @@ class MainWindow(QMainWindow):
         self._diagnosing: set[str] = set()
         self._stall = stallwatch.StallWatch()
         self._stall_timer: QTimer | None = None
+        # Written by mpv's event thread, read by the stall timer on this one.
+        # See _check_for_stall for why they are pushed rather than fetched.
+        self._time_pos: float | None = None
+        self._paused = False
 
         self._build_ui()
         self._build_shortcuts()
@@ -1036,10 +1040,10 @@ class MainWindow(QMainWindow):
         self.mpv.volume = self.volume
         self._apply_subtitle_settings()
         self.mpv.observe_property("core-idle", self._on_core_idle)
+        self.mpv.observe_property("time-pos", self._on_time_pos)
+        self.mpv.observe_property("pause", self._on_paused)
         self.mpv.register_event_callback(self._on_mpv_event)
 
-        # Polled rather than observed: a stall is the *absence* of change, and
-        # there is no property that fires when nothing happens.
         self._stall_timer = QTimer(self)
         self._stall_timer.setInterval(STALL_POLL_MS)
         self._stall_timer.timeout.connect(self._check_for_stall)
@@ -1100,6 +1104,14 @@ class MainWindow(QMainWindow):
     def _on_core_idle(self, _name, _value) -> None:
         pass  # observed so mpv keeps the property live for the info dialog
 
+    def _on_time_pos(self, _name, value) -> None:
+        """mpv's event thread. One assignment, and nothing else -- see mpvlog.py."""
+        self._time_pos = value
+
+    def _on_paused(self, _name, value) -> None:
+        """mpv's event thread. As above."""
+        self._paused = bool(value)
+
     def _on_mpv_event(self, event) -> None:
         """mpv's event thread. Emits a signal; must not touch widgets.
 
@@ -1122,17 +1134,20 @@ class MainWindow(QMainWindow):
         This is the only way the app finds out that a stream has stopped, because
         the failure it is looking for is one mpv does not consider a failure --
         see the module docstring there.
+
+        **Nothing here calls into mpv.** `mpv_get_property` is synchronous: it
+        blocks its caller until the core answers. Called from this thread, once a
+        second, against a core rendering into a window this thread owns, that is
+        a deadlock waiting to happen -- the core can be waiting on the video
+        output, the video output wants the GUI thread, and the GUI thread is
+        inside libmpv. So the two values are observed instead, pushed here by
+        mpv's event thread, and this timer only ever reads what has arrived.
         """
         if self.mpv is None or self.active_channel is None:
             self._stall.reset()
             return
-        try:
-            time_pos = self.mpv._get_property("time-pos")
-            paused = bool(self.mpv._get_property("pause"))
-        except Exception:
-            return  # between files, or shutting down: nothing to judge yet
 
-        verdict = self._stall.sample(time_pos, paused=paused)
+        verdict = self._stall.sample(self._time_pos, paused=self._paused)
         if verdict == stallwatch.RELOAD:
             self._reload_stalled_channel()
         elif verdict == stallwatch.GIVE_UP:
@@ -1217,7 +1232,10 @@ class MainWindow(QMainWindow):
         self.channels.clear_message()
         self.status.set_status(f"Playing {channel.name}")
         self._show_playing_with_guide(channel)
-        self._stall.reset()  # a new channel starts with a clean record
+        # A new channel starts with a clean record, and without the previous
+        # one's last position still sitting in the cache.
+        self._stall.reset()
+        self._time_pos = None
         try:
             self.mpv.play(channel.url)
         except Exception as exc:
@@ -1241,6 +1259,7 @@ class MainWindow(QMainWindow):
                 pass
         self.active_channel = None
         self._stall.reset()
+        self._time_pos = None
         self.info_action.setEnabled(False)
         self.status.set_playing(None)
         self.status.set_status("Stopped")

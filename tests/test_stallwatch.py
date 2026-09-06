@@ -173,3 +173,38 @@ def test_mpv_is_given_a_ca_bundle_that_exists():
     assert bundle is not None, "certifi is a declared dependency"
     assert Path(bundle).is_file()
     assert "BEGIN CERTIFICATE" in Path(bundle).read_text(encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
+# The rule the stall check has to obey
+# ---------------------------------------------------------------------------
+
+def test_the_stall_check_never_calls_into_mpv():
+    """`mpv_get_property` is synchronous, and this runs on the GUI thread.
+
+    Reading a property blocks the caller until mpv's core answers. Doing that
+    once a second, from the thread that owns the window mpv renders into, is a
+    deadlock waiting for its moment: the core can be waiting on the video
+    output, the video output wants the GUI thread, and the GUI thread is inside
+    libmpv. The two values are observed and pushed instead.
+
+    Checked by reading the source rather than by calling the method, because
+    importing winnotix.ui.main_window would load libmpv -- which the test
+    workflow deliberately does not install (see .github/workflows/tests.yml).
+    """
+    import ast
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parent.parent
+              / "winnotix" / "ui" / "main_window.py").read_text(encoding="utf-8")
+
+    function = next(
+        (node for node in ast.walk(ast.parse(source))
+         if isinstance(node, ast.FunctionDef) and node.name == "_check_for_stall"),
+        None)
+    assert function is not None, "_check_for_stall has been renamed or removed"
+
+    reads = [node.attr for node in ast.walk(function)
+             if isinstance(node, ast.Attribute)
+             and node.attr in {"_get_property", "_set_property", "command", "wait_for_property"}]
+    assert not reads, f"_check_for_stall calls into mpv synchronously: {reads}"
