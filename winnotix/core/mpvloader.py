@@ -103,3 +103,31 @@ def shutdown(player, *, event_callback=None, timeout: float = SHUTDOWN_TIMEOUT) 
 
     threading.Thread(target=stop, name="mpv-shutdown", daemon=True).start()
     return finished.wait(timeout)
+
+
+def ca_bundle() -> str | None:
+    """A CA bundle for mpv's TLS verification, or None if certifi is missing.
+
+    mpv verifies certificates against whatever trust store its TLS backend
+    reaches for, which on Windows is the system store -- and a freshly installed
+    Windows carries a sparse one. Measured on a machine reinstalled in September
+    2026: 38 roots, without `Sectigo Public Server Authentication Root R46`.
+    That is what Pluto's CDN chains to for the AES-128 key files its HLS
+    segments are encrypted with, so mpv could not fetch a key, could not decrypt
+    the segment, and skipped it -- enough of them in a row and it falls off the
+    live edge of the playlist.
+
+    certifi is the same curated bundle this app's own HTTP requests already
+    trust through `requests`. Pointing mpv at it makes playback verify what the
+    rest of the app verifies, on any machine, instead of depending on how much
+    of the trust store Windows has got round to fetching. PyInstaller's certifi
+    hook bundles `cacert.pem`, so this resolves in a frozen build too -- but the
+    path is checked rather than assumed, because a missing bundle should cost
+    the setting, not playback.
+    """
+    try:
+        import certifi  # noqa: PLC0415 -- optional, and only needed here
+    except ImportError:
+        return None
+    path = Path(certifi.where())
+    return str(path) if path.is_file() else None

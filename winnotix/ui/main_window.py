@@ -39,7 +39,7 @@ from ..core.common import (
     idle_function,
 )
 from ..core.settings import DEFAULTS, SettingsShim
-from ..core import mpvlog, paths, streamcheck, xtream_loader
+from ..core import mpvlog, paths, stallwatch, streamcheck, xtream_loader
 from . import pages as P
 from .logos import LogoCache
 from .theme import palette_for, stylesheet
@@ -54,6 +54,11 @@ END_FILE_ERROR = 4
 
 # How long to wait for mpv to stop before closing the window regardless.
 MPV_SHUTDOWN_TIMEOUT = mpvloader.SHUTDOWN_TIMEOUT
+
+# How often to ask whether playback is still moving. A second is far below the
+# ten it takes to call a stall, so the cost of polling is one property read per
+# second and the delay it adds to noticing is negligible. See core/stallwatch.py.
+STALL_POLL_MS = 1000
 
 LANDING = "landing_page"
 CATEGORIES = "categories_page"
@@ -146,6 +151,8 @@ class MainWindow(QMainWindow):
         self._is_fullscreen = False
         self._mpv_log = mpvlog.LogThrottle()
         self._diagnosing: set[str] = set()
+        self._stall = stallwatch.StallWatch()
+        self._stall_timer: QTimer | None = None
 
         self._build_ui()
         self._build_shortcuts()
@@ -1008,6 +1015,14 @@ class MainWindow(QMainWindow):
         options["referrer"] = self.settings.get_string("http-referer")
         osc = options.pop("osc", "yes") != "no"
 
+        # Verify TLS against certifi rather than whatever Windows happens to
+        # trust -- see mpvloader.ca_bundle(). Skipped if mpv-options names a
+        # bundle already, in either spelling python-mpv accepts.
+        if not {key.replace("_", "-") for key in options} & {"tls-ca-file"}:
+            bundle = mpvloader.ca_bundle()
+            if bundle is not None:
+                options["tls_ca_file"] = bundle
+
         self.mpv = mpv.MPV(
             **options,
             wid=str(wid),
@@ -1022,6 +1037,13 @@ class MainWindow(QMainWindow):
         self._apply_subtitle_settings()
         self.mpv.observe_property("core-idle", self._on_core_idle)
         self.mpv.register_event_callback(self._on_mpv_event)
+
+        # Polled rather than observed: a stall is the *absence* of change, and
+        # there is no property that fires when nothing happens.
+        self._stall_timer = QTimer(self)
+        self._stall_timer.setInterval(STALL_POLL_MS)
+        self._stall_timer.timeout.connect(self._check_for_stall)
+        self._stall_timer.start()
 
     # -- subtitles -----------------------------------------------------
 
@@ -1094,6 +1116,48 @@ class MainWindow(QMainWindow):
             return
         self.playback_failed.emit(self.active_channel, reason)
 
+    def _check_for_stall(self) -> None:
+        """Main thread, once a second. The policy lives in core/stallwatch.py.
+
+        This is the only way the app finds out that a stream has stopped, because
+        the failure it is looking for is one mpv does not consider a failure --
+        see the module docstring there.
+        """
+        if self.mpv is None or self.active_channel is None:
+            self._stall.reset()
+            return
+        try:
+            time_pos = self.mpv._get_property("time-pos")
+            paused = bool(self.mpv._get_property("pause"))
+        except Exception:
+            return  # between files, or shutting down: nothing to judge yet
+
+        verdict = self._stall.sample(time_pos, paused=paused)
+        if verdict == stallwatch.RELOAD:
+            self._reload_stalled_channel()
+        elif verdict == stallwatch.GIVE_UP:
+            name = self.active_channel.name
+            self.status.set_status(
+                f"{name} stopped sending and did not come back after "
+                f"{self._stall.attempts} attempts.")
+            self.channels.show_message(
+                f"{name} stopped sending. Reconnecting did not help — the "
+                "channel may be off air.")
+
+    def _reload_stalled_channel(self) -> None:
+        """Reopen the current channel where it stands.
+
+        Reopening is the point, not a retry of something that failed: the stream
+        is still being delivered, and a fresh demuxer is what picks up the
+        program that replaced the one mpv was following.
+        """
+        channel = self.active_channel
+        self.status.set_status(f"{channel.name} stopped sending — reconnecting…")
+        try:
+            self.mpv.play(channel.url)
+        except Exception as exc:
+            self.status.set_status(f"Could not reconnect to {channel.name}: {exc}")
+
     def _on_playback_failed(self, channel, reason: str) -> None:
         if channel is None or channel is not self.active_channel:
             return  # a stale failure from a channel we have already left
@@ -1153,6 +1217,7 @@ class MainWindow(QMainWindow):
         self.channels.clear_message()
         self.status.set_status(f"Playing {channel.name}")
         self._show_playing_with_guide(channel)
+        self._stall.reset()  # a new channel starts with a clean record
         try:
             self.mpv.play(channel.url)
         except Exception as exc:
@@ -1175,6 +1240,7 @@ class MainWindow(QMainWindow):
             except Exception:
                 pass
         self.active_channel = None
+        self._stall.reset()
         self.info_action.setEnabled(False)
         self.status.set_playing(None)
         self.status.set_status("Stopped")
@@ -1494,6 +1560,10 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event) -> None:
         self.logo_cache.shutdown()
+        # Before the player goes: a tick landing mid-teardown would read
+        # properties off a handle that is being destroyed.
+        if self._stall_timer is not None:
+            self._stall_timer.stop()
         player, self.mpv = self.mpv, None
         if player is not None:
             self._shutdown_mpv(player)
