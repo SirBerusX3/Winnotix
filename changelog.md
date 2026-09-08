@@ -65,6 +65,21 @@ forked at upstream `0e0fa1c` (v5.6). Licensed GPLv3.
   every command after it failed on a path the user had no reason to recognise. The recorded
   interpreter is now checked, and a venv that cannot be used is replaced rather than trusted.
 
+- **Free-TV's Pluto channels played a loop saying the channel was no longer available**
+  (`resources/blocklist.json`). 131 of Free-TV's 2,068 entries link Pluto's stitcher hosts
+  directly, and those serve a takedown slate rather than the channel — sampled on 2026-09-07, 24
+  of 24 returned segments under `..._ptv_takedownslates_all_1500/`, from a slate clip dated
+  November 2025. Reported from use, alongside the observation that iptv-org's Pluto channels play
+  perfectly well.
+  - **They were blocked once, and un-blocked by mistake.** Both Pluto rules were retired together
+    on 2026-09-02 when access was restored, on a sample that went through the `jmp2.uk`
+    redirector. That route did recover and still works. The directly-linked hosts never came back,
+    and the retirement did not look at them separately.
+  - The two routes are now treated as the two things they are: the direct hosts are blocked and
+    the redirector is not. That removes 131 dead entries from Free-TV and leaves all 2,357 of
+    iptv-org's working Pluto entries in place, because iptv-org links Pluto only through the
+    redirector.
+
 ### Changed
 
 - **mpv verifies TLS against certifi rather than the Windows trust store**
