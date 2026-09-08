@@ -17,9 +17,9 @@
       "id": "pluto-tv-takedown",
       "reason": "Pluto TV serves a ~25s takedown notice instead of the stream",
       "host_suffix": ".pluto.tv",
-      "verified": "2026-09-02",
-      "notes": "RETIRED 2026-09-02: Pluto restored third-party stitcher access, which is the condition this rule named for its own removal. On 2026-08-31 every sampled entry returned an HLS manifest whose segments were named 'ptv_takedownslates'; on 2026-09-02 a fresh sample of 53 (13 targeted, 40 random) returned real 'hls_*.ts' segments and no slates at all. Kept, disabled, rather than deleted: the takedown lasted two days and could return, and re-enabling is a one-word edit.",
-      "enabled": false
+      "verified": "2026-09-07",
+      "notes": "RE-ENABLED 2026-09-07, and the 2026-09-02 retirement was half wrong. Pluto restored access through the jmp2.uk redirector, which is what that sample measured; the hosts linked *directly* never came back. Reported from use as Free-TV's Pluto channels playing a loop saying the channel is no longer available while iptv-org's played normally. Measured 2026-09-07: 24 of 24 sampled Free-TV entries on service-stitcher.clusters.pluto.tv returned segments under '..._ptv_takedownslates_all_1500/', the same signature as 2026-08-31; the slate clip is dated 20251111, so it has been there since November 2025. Blast radius: 131 of Free-TV's 2,068 entries match, and 0 of iptv-org's 14,403 -- iptv-org links Pluto only through the redirector, so this rule never sees those hosts. The redirector rule below stays off, because that route plays real content.",
+      "enabled": true
     },
     {
       "id": "pluto-tv-redirector",

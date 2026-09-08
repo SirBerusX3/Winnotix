@@ -218,25 +218,32 @@ def shipped(tmp_path):
     return Blocklist.load(user=tmp_path / "no-user-rules.json")
 
 
-def test_the_pluto_rules_are_retired_but_not_deleted(tmp_path):
-    """Pluto restored third-party stitcher access on 2026-09-02.
+def test_only_the_direct_pluto_hosts_are_blocked(tmp_path):
+    """Pluto came back by one route and not the other, and the rules follow that.
 
-    That is the condition both rules named for their own removal. A sample of
-    53 entries that had served 'ptv_takedownslates' two days earlier returned
-    real 'hls_*.ts' segments and no slates at all, so the rules are off. They
-    are kept rather than deleted because the takedown lasted two days and could
-    come back -- and because a rule that names its evidence is worth keeping
-    even when it is not firing.
+    The 2026-09-02 retirement turned both rules off together, on a sample that
+    went through the jmp2.uk redirector. That route did recover. The hosts
+    linked directly never did: on 2026-09-07, 24 of 24 sampled Free-TV entries
+    on service-stitcher.clusters.pluto.tv still returned '_ptv_takedownslates_'
+    segments, from a slate clip dated November 2025. Reported from use as
+    Free-TV's Pluto channels looping a "no longer available" notice while
+    iptv-org's played normally.
+
+    So the direct rule is on and the redirector rule is off, which is the
+    difference between blocking 131 dead Free-TV entries and blocking 2,357
+    working iptv-org ones.
     """
     blocklist = shipped(tmp_path)
     rules = {rule.id: rule for rule in blocklist.rules}
 
     assert set(rules) >= {"pluto-tv-takedown", "pluto-tv-redirector"}
-    assert not any(rules[name].enabled
-                   for name in ("pluto-tv-takedown", "pluto-tv-redirector"))
+    assert rules["pluto-tv-takedown"].enabled
+    assert not rules["pluto-tv-redirector"].enabled
 
-    # So Pluto plays again, by both routes.
-    assert blocklist.match(PLUTO_URL) is None
+    # The direct hosts serve a slate, so they go.
+    assert blocklist.match(PLUTO_URL).id == "pluto-tv-takedown"
+    # The redirector plays real content, so it stays -- and it is written as
+    # jmp2.uk, which the .pluto.tv rule never sees in the first place.
     assert blocklist.match(PLUTO_REDIRECT_URL) is None
     assert blocklist.match("https://jmp2.uk/plu-abc123") is None
 
@@ -264,8 +271,8 @@ def test_the_retired_rules_would_still_match_if_switched_back_on(tmp_path):
     assert revived.match("https://tv.a2news.com/live/smil:x.smil/playlist.m3u8") is None
 
 
-def test_nothing_is_filtered_while_every_rule_is_off(tmp_path, providers_dir):
-    """The shipped state today: a playlist passes through untouched."""
+def test_the_redirector_route_passes_through(tmp_path, providers_dir):
+    """The shipped state today: what plays is kept, and only slates are dropped."""
     provider = Provider(name=None, provider_info="p:::url:::http://x:::::::::")
     provider.path = str(write_m3u(tmp_path / "p.m3u", """
 #EXTINF:-1 group-title="News",Pluto Something
