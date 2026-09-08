@@ -1,9 +1,10 @@
 # Winnotix — Hypnotix Windows Port Roadmap
 
-> **Status:** Phases 0–4 complete and released — 0.1.0 on 2026-09-02, 0.2.0 on 2026-09-04, both as
-> a portable one-folder app built by CI from a tag. What remains from the original plan is three
-> inherited parsing defects (§5) and a decision about them, not work. Where the project goes from
-> here is §13; what has to stay put for it to still be Hypnotix-shaped is §12.
+> **Status:** Phases 0–4 complete and released — 0.1.0 on 2026-09-02, 0.2.0 on 2026-09-04 and
+> 0.2.1 on 2026-09-08, each a portable one-folder app built by CI from a tag. What remains from
+> the original plan is three inherited parsing defects (§5) and a decision about them, not work.
+> Where the project goes from here is §13; what has to stay put for it to still be
+> Hypnotix-shaped is §12.
 >
 > This document is the *plan* and is kept as written except where the work proved it wrong —
 > [changelog.md](changelog.md) is the record of what has actually been done.
@@ -396,7 +397,7 @@ rejected: embedding a real hardware-accelerated player is the app's whole purpos
 > and invited a reapplication; **Azure Artifact Signing** validates individual developers only in
 > the US and Canada, and wants three years of tax history from an organisation; a **commercial OV
 > certificate** is roughly $215–220 a year and would remove "unknown publisher" without removing
-> the SmartScreen warning, which accrues per publisher. 0.1.0 and 0.2.0 therefore ship unsigned,
+> the SmartScreen warning, which accrues per publisher. 0.1.0, 0.2.0 and 0.2.1 therefore ship unsigned,
 > say so on their own release pages, and publish a SHA-256 instead. See §13.
 
 PyInstaller output has a shape antivirus heuristics dislike -- unsigned, self-extracting,
